@@ -237,6 +237,15 @@
       color: var(--text);
     }
     .btn-outline:hover { background: #f3f4f6; }
+    .btn-add-row {
+      border-style: dashed;
+      border-color: #0d478c;
+      color: #0d478c;
+      font-weight: 600;
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn-add-row:hover { background: #eff6ff; }
     .btn-block { width: 100%; }
     .btn-sm { padding: 8px 14px; font-size: 0.85rem; }
     .btn:disabled {
@@ -301,7 +310,7 @@
     .sig-pad-wrap {
       border: 1.5px solid var(--border);
       border-radius: 8px;
-      background: #fafafa;
+      background: #ffffff;
       position: relative;
     }
     .sig-pad-wrap canvas {
@@ -309,6 +318,7 @@
       height: 160px;
       display: block;
       touch-action: none;
+      background: #ffffff;
     }
     .sig-actions {
       display: flex;
@@ -627,8 +637,12 @@
 
         <div class="row">
           <div class="form-group">
-            <label>Date of Work <span class="req">*</span></label>
+            <label>Work Start Date <span class="req">*</span></label>
             <input type="date" id="work-date" required />
+          </div>
+          <div class="form-group">
+            <label>Work End Date <span class="req">*</span></label>
+            <input type="date" id="work-end-date" required />
           </div>
           <div class="form-group">
             <label>Time On Site – Arrival</label>
@@ -680,7 +694,7 @@
           ⚡ Auto-populated from typical hazards for this work type. Review, edit if needed, then Confirm.
         </div>
         <div id="hazards-container"></div>
-        <button type="button" class="btn btn-outline btn-sm" id="btn-add-hazard" style="margin-top:8px;">+ Add Hazard</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btn-add-hazard" class="btn-add-row" style="margin-top:8px;">+ ADD ROW</button>
 
         <div class="form-group" style="margin-top:16px;">
           <label>Mandatory PPE Confirmed</label>
@@ -695,13 +709,65 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Toolbox Talk Time</label>
-          <input type="time" id="toolbox-time" class="auto-filled" />
+        <div class="row" style="margin-top:12px;">
+          <div class="form-group">
+            <label>Was Toolbox Talk Conducted?</label>
+            <div class="checkbox-group" style="display:flex;gap:18px;margin-top:6px;">
+              <label class="check-item"><input type="radio" name="toolbox-held" id="toolbox-yes" value="YES"> YES</label>
+              <label class="check-item"><input type="radio" name="toolbox-held" id="toolbox-no" value="NO" checked> NO</label>
+            </div>
+          </div>
+          <div class="form-group" id="toolbox-times-wrap" style="display:none;">
+            <label>Toolbox Talk Start / End</label>
+            <div class="row">
+              <div class="form-group">
+                <label style="font-size:0.8rem;">Start Time</label>
+                <input type="time" id="toolbox-start" />
+              </div>
+              <div class="form-group">
+                <label style="font-size:0.8rem;">End Time</label>
+                <input type="time" id="toolbox-end" />
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Lead Technician Safety Declaration</label>
-          <textarea id="safety-declaration" rows="3" class="auto-filled"></textarea>
+        <!-- keep hidden legacy field for draft compatibility -->
+        <input type="hidden" id="toolbox-time" value="" />
+        <input type="hidden" id="safety-declaration" value="" />
+
+        <div class="form-group" style="margin-top:16px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;">
+          <label style="font-weight:700;">Job Safety and Health Acknowledgement</label>
+          <p style="font-size:0.85rem;line-height:1.45;margin:8px 0 12px;color:#334155;">
+            By signing below, I certify that I have conducted a pre-job safety assessment and am wearing all required Personal Protective Equipment (PPE) for this task. I acknowledge that I have reviewed the safety hazards associated with this work order, understand the safe operating procedures, and agree to perform the work in compliance with company health and safety standards.
+          </p>
+          <div class="row">
+            <div class="form-group" style="flex:1;">
+              <label>Technician's Name</label>
+              <input type="text" id="jha-tech-name" placeholder="Technician full name" />
+              <div class="sig-pad-wrap" style="margin-top:6px;">
+                <canvas id="sig-jha-tech"></canvas>
+              </div>
+              <div class="sig-actions">
+                <button type="button" class="btn btn-outline btn-sm" data-clear-sig="sig-jha-tech">Clear</button>
+                <label class="btn btn-outline btn-sm" style="cursor:pointer;">Attach file
+                  <input type="file" id="sig-jha-tech-file" accept="image/*" style="display:none;" />
+                </label>
+              </div>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label>Supervisor's Name</label>
+              <input type="text" id="jha-supervisor-name" placeholder="Supervisor full name" />
+              <div class="sig-pad-wrap" style="margin-top:6px;">
+                <canvas id="sig-jha-supervisor"></canvas>
+              </div>
+              <div class="sig-actions">
+                <button type="button" class="btn btn-outline btn-sm" data-clear-sig="sig-jha-supervisor">Clear</button>
+                <label class="btn btn-outline btn-sm" style="cursor:pointer;">Attach file
+                  <input type="file" id="sig-jha-supervisor-file" accept="image/*" style="display:none;" />
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
 
         <button type="button" class="btn btn-primary btn-block" data-confirm="1" style="margin-top:12px;">Confirm Hazards & Continue</button>
@@ -774,7 +840,7 @@
           <textarea id="qc-intro" rows="2" class="auto-filled"></textarea>
         </div>
         <div id="qc-table-container"></div>
-        <button type="button" class="btn btn-outline btn-sm" id="btn-add-qc" style="margin:8px 0;">+ Add Test Row</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btn-add-qc" class="btn-add-row" style="margin:8px 0;">+ ADD ROW</button>
         <div class="form-group">
           <label>Overall QC Conclusion</label>
           <textarea id="qc-conclusion" rows="3" class="auto-filled"></textarea>
@@ -791,7 +857,7 @@
       <div class="step-body">
         <div class="auto-banner">⚡ Suggested parts for this repair. Edit quantities, vendors, warranty dates as needed.</div>
         <div id="parts-container"></div>
-        <button type="button" class="btn btn-outline btn-sm" id="btn-add-part" style="margin:8px 0;">+ Add Part</button>
+        <button type="button" class="btn btn-outline btn-sm" id="btn-add-part" class="btn-add-row" style="margin:8px 0;">+ ADD ROW</button>
         <div class="form-group">
           <label>Traceability Note</label>
           <textarea id="parts-traceability" rows="3" class="auto-filled"></textarea>
@@ -870,6 +936,9 @@
         </div>
         <div class="sig-actions">
           <button type="button" class="btn btn-outline btn-sm" data-clear-sig="sig-tech">Clear</button>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer;">Attach file
+            <input type="file" id="sig-tech-file" accept="image/*" style="display:none;" />
+          </label>
         </div>
         <div class="row" style="margin-top:10px;">
           <div class="form-group">
@@ -888,6 +957,9 @@
         </div>
         <div class="sig-actions">
           <button type="button" class="btn btn-outline btn-sm" data-clear-sig="sig-assist">Clear</button>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer;">Attach file
+            <input type="file" id="sig-assist-file" accept="image/*" style="display:none;" />
+          </label>
         </div>
 
         <hr style="margin:20px 0;border:none;border-top:1px solid var(--border);" />
@@ -910,6 +982,9 @@
         </div>
         <div class="sig-actions">
           <button type="button" class="btn btn-outline btn-sm" data-clear-sig="sig-client">Clear</button>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer;">Attach file
+            <input type="file" id="sig-client-file" accept="image/*" style="display:none;" />
+          </label>
         </div>
         <div class="row" style="margin-top:10px;">
           <div class="form-group">
@@ -973,6 +1048,7 @@
   <!-- Hidden area used for clean PDF rendering -->
   <div id="pdf-render-area"></div>
 
+  <script src="fsw-pdf-theme.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

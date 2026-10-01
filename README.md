@@ -1,54 +1,54 @@
-# FORECOURT WORKS LIMITED – Technical Service Work Order
+# FORECOURT WORKS LIMITED — Job Completion & Sign-Off (Work Order App)
 
-**Tagline:** ***Engineering Reliability into Every Forecourt*** (bold + italic)
+**Tagline:** *Engineering Reliability Into Every Forecourt*
 
-First-line operational document for all inspection, repair and maintenance work across fueling facilities and automotive service shops.
+First-line operational document for inspection, repair and maintenance work across fueling facilities and power systems.
 
-## Visual System (Correction Plan Compliant)
+## Document title
+**JOB COMPLETION & SIGN-OFF**
 
-- Navy `#0d478c` / accent `#d9730d` colour system
-- **Header (every page)**
-  - Company address left-aligned (FORECOURT WORKS LTD + full address + phone + sales@ email)
-  - Logo top-right, properly sized, clear of boundaries
-  - Document title right-aligned under logo (WORK ORDER / COMPLETION & SIGN-OFF)
-  - Thick horizontal rule terminating on inner boundary lines
-- **Footer (every page)**
-  - Document title left, controlled-document info right (above inner boundary)
-  - Tagline centred, bold + italic, **below** the outer boundary line
-- Dual boundary (outer lighter weight, inner)
-- True multi-column tables with 15 % opacity borders
-- Status values written in full (YES in green, NON CONFORMING in red)
-- Field containers: grey parameter side + white response side
-- Section headings colour-differentiated for hierarchy
-- Logo embedded and visible on every rendered PDF page (mandatory)
+Meta pill: `Job Card No | Associated WO | Date (DD-MON-YYYY) | Status`
 
-## Features
+## PDF chrome (FSW theme)
+- Double navy boundary (outer 0.65 mm + inner 0.22 mm)
+- Company block left; logo top-right
+- Blue header/body separator
+- No footer text (boundary only)
+- Title centred under separator
 
-- Calendar & clock pickers
-- GPS auto-address (Nominatim)
-- Smart auto-population by Work Type + Equipment Category
-- Photos / evidence embedded in PDF
-- Lead tech, assist tech & client signatures (SignaturePad)
-- Draft save (localStorage) + Web Share / download
-- Pre-render validation orientation (no blank “—” dumps)
+## Section order
+| Part | Content |
+|------|---------|
+| **A** | Job & equipment particulars (3-column meta tiles) |
+| **B** | JHA table (+ADD ROW), PPE, toolbox YES/NO + times, Job Safety acknowledgement, tech/supervisor signatures (pad + file) |
+| — | **Page break** — page 1 ends after PART B |
+| | Reported Problem (self-sizing card) |
+| **C** | Scope of work & deliverables (3 cards) |
+| **D** | Summary of work done and findings |
+| **E** | Quality control tests (table, +ADD ROW) |
+| **F** | Spare parts — 7 columns (Name & PN, Qty, Status NEW/RECONDITIONED, Vendor, Install, Warranty start/end), +ADD ROW |
+| **G** | Technician recommendations |
+| **H** | Equipment final status |
+| **I** | Lead tech + client signatures (pad + file) |
+| | Photographic evidence — **4 quadrants every page**; extra pages for 5–8, 9–12, … |
 
-## Parts (A–I)
-
-A Job & Equipment · B JHA · C Scope · D Work Done · E QC Tests · F Spare Parts · G Recommendations · H Final Status & Photos · I Signatures · Review & PDF
-
-## How to Use
-
-1. Open `index.html` (HTTPS recommended for GPS, camera, share).
-2. Complete steps; Confirm after auto-fill.
-3. Capture signatures → Generate Professional PDF.
-4. Logo, structured tables, correct header/footer and tagline are enforced on every page.
+## Key form behaviours
+- **Work Start Date / Work End Date** (calendar, DD-MON-YYYY on PDF)
+- Times render with **AM/PM**
+- **COMPLETE | DEPARTURE** share one tile
+- Toolbox: YES requires start & end times
+- Tables default **5 rows**; **+ ADD ROW** appends more
+- PDF **does not split** cards/tables mid-block (`ensureSpace`); oversized tables break only between rows
 
 ## Files
+- `index.html` — multi-step form UI
+- `app.js` — state, validation, PDF generation
+- `forecourt-logo-mark.png` — header logo
+- `fsw-pdf-theme.js` — shared theme helpers (optional)
+- `Roboto-*.ttf` — font assets
 
-`index.html` · `app.js` · `README.md`
+## Usage
+Open `index.html` in a modern browser (or serve statically). Complete steps → Generate Professional PDF.
 
-Logo embedded in `app.js` for offline PDF generation.
-
-**Contact:** Ramco Court, Gate 3B, Bellevue, South C · +(254) 729-002-087 · sales@forecourtworks.co.ke
-
-© Forecourt Works Limited – Controlled Document System
+---
+Forecourt Works Limited · Ramco Court, GT 3B, South C, Nairobi · +254 729-002-087 · sales@forecourtworks.co.ke
