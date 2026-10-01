@@ -159,6 +159,33 @@
   }
 
 
+  /** PDF download: JC#<last4>-<CLIENT4>-<SITE3>-<DD/MON/YY>.pdf
+   * Example: 2026-0067, Ainushamsi Energy, Pumwani, 01-OCT-2026
+   *       → JC#0067-AINU-PUM-01/OCT/26.pdf
+   */
+  function buildPdfFileName() {
+    const jc = (val('#wo-number') || '').trim();
+    let serial = '0000';
+    const m = jc.match(/-(\d+)\s*$/);
+    if (m) serial = m[1].slice(-4).padStart(4, '0');
+    else {
+      const digits = jc.replace(/\D/g, '');
+      serial = (digits.slice(-4) || '0000').padStart(4, '0');
+    }
+    const client = (val('#client-name') || 'XXXX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 4).padEnd(4, 'X');
+    const site = (val('#site-name') || 'XXX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3).padEnd(3, 'X');
+    let d = val('#work-end-date') || val('#work-date') || '';
+    const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    if (/^\d{4}-\d{2}-\d{2}/.test(d)) {
+      const [yy, mm, dd] = d.slice(0, 10).split('-');
+      d = dd + '/' + mons[parseInt(mm, 10) - 1] + '/' + yy.slice(-2);
+    } else if (!d) {
+      d = '00/XXX/00';
+    }
+    return 'JC#' + serial + '-' + client + '-' + site + '-' + d + '.pdf';
+  }
+
+
   function toast(msg, type = '') {
     const el = $('#toast');
     el.textContent = msg;
@@ -519,7 +546,7 @@
 
   // ---------- Signatures ----------
   function initSignatures() {
-    ['sig-tech', 'sig-assist', 'sig-client', 'sig-jha-tech', 'sig-jha-supervisor'].forEach(id => {
+    ['sig-tech', 'sig-client', 'sig-jha-tech', 'sig-jha-supervisor'].forEach(id => {
       const canvas = document.getElementById(id);
       if (!canvas) return;
       // Clear previous
@@ -549,29 +576,67 @@
 
   function clearSig(id) {
     if (sigPads[id]) sigPads[id].clear();
+    if (state.sigImages) delete state.sigImages[id];
+    const canvas = document.getElementById(id);
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      const w = canvas.offsetWidth || 300, h = 150;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
   }
 
   function getSigData(id) {
-    if (!sigPads[id] || sigPads[id].isEmpty()) return null;
+    // Prefer cached image (file attach or last pad export) so PDF always sees signatures
+    if (state.sigImages && state.sigImages[id]) return state.sigImages[id];
     try {
       const canvas = document.getElementById(id);
-      if (!canvas) return sigPads[id].toDataURL('image/jpeg', 0.92);
-      const tmp = document.createElement('canvas');
-      tmp.width = canvas.width;
-      tmp.height = canvas.height;
-      const ctx = tmp.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, tmp.width, tmp.height);
-      ctx.drawImage(canvas, 0, 0);
-      return tmp.toDataURL('image/jpeg', 0.92);
-    } catch (e) {
-      try { return sigPads[id].toDataURL('image/jpeg', 0.9); } catch (_) { return null; }
-    }
+      if (canvas) {
+        // Detect non-blank canvas even if SignaturePad thinks empty (file draw path)
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        if (w && h) {
+          const data = ctx.getImageData(0, 0, Math.min(w, 400), Math.min(h, 200)).data;
+          let ink = false;
+          for (let i = 0; i < data.length; i += 16) {
+            if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) { ink = true; break; }
+          }
+          if (ink) {
+            const url = canvas.toDataURL('image/png');
+            state.sigImages[id] = url;
+            return url;
+          }
+        }
+      }
+      if (sigPads[id] && !sigPads[id].isEmpty()) {
+        const url = sigPads[id].toDataURL('image/png');
+        state.sigImages[id] = url;
+        return url;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function captureSigToState(id) {
+    try {
+      const url = getSigData(id);
+      if (url) state.sigImages[id] = url;
+    } catch (_) {}
   }
 
   // ---------- Validation for compulsory fields per step ----------
   function validateStep(step) {
-    if (step === 0) return true; // handled in autofill
+    if (step === 0) {
+      if (!val('#work-date')) {
+        toast('Work Start Date is required', 'error');
+        return false;
+      }
+      if (!val('#work-end-date')) {
+        toast('Work End Date is required', 'error');
+        return false;
+      }
+      return true;
+    }
     if (step === 1) {
       const yes = $('#toolbox-yes') && $('#toolbox-yes').checked;
       if (yes) {
@@ -580,6 +645,17 @@
           return false;
         }
       }
+      if (!val('#jha-tech-name')) {
+        toast('Technician name on Job Safety acknowledgement is required', 'error');
+        return false;
+      }
+      captureSigToState('sig-jha-tech');
+      if (!getSigData('sig-jha-tech')) {
+        toast('Technician signature on PART B (pad or file) is required', 'error');
+        return false;
+      }
+      // Sync technician name into PART I sign-off name field
+      if ($('#sig-tech-name')) $('#sig-tech-name').value = val('#jha-tech-name').toUpperCase();
     }
     if (step === 7) {
       if (!$('#final-status').value) {
@@ -954,8 +1030,8 @@
         F('bold', 9);
         doc.setTextColor(...fswNavy);
         const woNo = val('#wo-number') || '—';
-        // Job Card No: prefer digits from WO (e.g. WO-2026-0042 -> 2026-0042)
-        const jobCard = (woNo.replace(/^WO-?/i, '').trim() || woNo);
+        // Job Card No is the primary document number entered by the user
+        const jobCard = woNo.replace(/^WO-?/i, '').trim() || woNo;
         let woDate = val('#doc-date') || '—';
         // ISO YYYY-MM-DD -> DD-MON-YYYY
         if (/^\d{4}-\d{2}-\d{2}/.test(woDate)) {
@@ -1044,8 +1120,10 @@ y = drawHeaderAndTitle();
         const half = (usable - 3) / 2;
         const boxH = 18;
         checkPage(36);
-        const techName = val('#jha-tech-name') || val('#tech-lead') || '-';
-        const supName = val('#jha-supervisor-name') || '-';
+        const techName = (val('#jha-tech-name') || val('#tech-lead') || '-').toUpperCase();
+        const supName = (val('#jha-supervisor-name') || '-').toUpperCase();
+        captureSigToState('sig-jha-tech');
+        captureSigToState('sig-jha-supervisor');
         const techSig = (typeof getSigData === 'function') ? getSigData('sig-jha-tech') : null;
         const supSig = (typeof getSigData === 'function') ? getSigData('sig-jha-supervisor') : null;
         function jhaSig(x0, title, name, sigData) {
@@ -1201,12 +1279,15 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS');
       sectionHeader('PART I  —  SIGNATURES & CLIENT ACCEPTANCE');
       y += 2; // clearance under blue bar so titles never touch the bar
       {
-        const techSig = getSigData('sig-tech');
+        // Capture latest pad/file signatures before PDF
+        captureSigToState('sig-tech');
+        captureSigToState('sig-client');
+        captureSigToState('sig-jha-tech');
+        const techSig = getSigData('sig-tech') || getSigData('sig-jha-tech');
         const clientSig = getSigData('sig-client');
-        const assistSig = getSigData('sig-assist');
         const half = (usable - 3) / 2;
         const boxH = 16;
-        checkPage(55);
+        ensureSpace(55);
 
         function sigBlock(x0, title, name, dateStr, sigData) {
           doc.setFont('helvetica', 'bold');
@@ -1216,7 +1297,8 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS');
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8);
           doc.setTextColor(15, 23, 42);
-          doc.text((name || '-').slice(0, 40), x0, y + 4.5);
+          const nm = String(name || '-').toUpperCase().slice(0, 42);
+          doc.text(nm, x0, y + 4.5);
           doc.setFontSize(7);
           doc.setTextColor(100, 116, 139);
           doc.text('Date: ' + (dateStr || '-'), x0, y + 8.5);
@@ -1225,42 +1307,36 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS');
           doc.setLineWidth(0.25);
           doc.roundedRect(x0, y + 10, half - 1, boxH, 1, 1, 'FD');
           if (sigData) {
-            try { doc.addImage(sigData, 'JPEG', x0 + 1.5, y + 10.5, half - 4, boxH - 1); }
+            try { doc.addImage(sigData, 'PNG', x0 + 1.5, y + 10.5, half - 4, boxH - 1); }
             catch (_) {
-              try { doc.addImage(sigData, 'PNG', x0 + 1.5, y + 10.5, half - 4, boxH - 1); } catch (__) {}
+              try { doc.addImage(sigData, 'JPEG', x0 + 1.5, y + 10.5, half - 4, boxH - 1); } catch (__) {}
             }
           }
         }
 
+        // Lead tech name: PART B JHA tech name, else PART I field, else lead technician
+        const leadName = (val('#jha-tech-name') || val('#sig-tech-name') || val('#tech-lead') || '-');
+        // Site rep: Part A site contact feeds client-rep-name
+        const clientName = (val('#client-rep-name') || val('#site-contact') || '-');
+        const clientTitle = val('#client-rep-title') || '';
+
         sigBlock(
           m,
           'LEAD TECHNICIAN',
-          val('#sig-tech-name') || val('#tech-lead'),
-          val('#sig-tech-date'),
+          leadName,
+          val('#sig-tech-date') || formatDateDDMONYYYY(val('#work-end-date') || val('#work-date')),
           techSig
         );
         sigBlock(
           m + half + 3,
           'CLIENT / SITE REPRESENTATIVE',
-          (val('#client-rep-name') || '-') + (val('#client-rep-title') ? ' · ' + val('#client-rep-title') : ''),
-          (val('#sig-client-date') || '') + (val('#sig-client-time') ? ' ' + val('#sig-client-time') : ''),
+          clientName + (clientTitle ? ' · ' + clientTitle : ''),
+          (val('#sig-client-date') || formatDateDDMONYYYY(val('#work-end-date') || val('#work-date'))) + (val('#sig-client-time') ? ' ' + formatTimeAMPM(val('#sig-client-time')) : ''),
           clientSig
         );
         y += 10 + boxH + 6;
 
-        if (assistSig || val('#tech-assist')) {
-          checkPage(28);
-          sigBlock(
-            m,
-            'ASSISTING TECHNICIAN',
-            val('#tech-assist') || '-',
-            val('#sig-tech-date') || '-',
-            assistSig
-          );
-          y += 10 + boxH + 4;
-        }
-
-        if (val('#acceptance-text')) drawContentCard('Acknowledgement', val('#acceptance-text'));
+                if (val('#acceptance-text')) drawContentCard('Acknowledgement', val('#acceptance-text'));
         if (val('#client-comments')) drawContentCard('Client Comments', val('#client-comments'));
       }
 
@@ -1359,7 +1435,7 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS');
         drawFrame();
       }
 
-const fileName = `${val('#wo-number') || 'WO'}_${(val('#site-name') || 'WorkOrder').replace(/\s+/g, '_')}.pdf`;
+const fileName = buildPdfFileName();
       state.pdfBlob = doc.output('blob');
       state.pdfFileName = fileName;
 
@@ -1437,23 +1513,49 @@ const fileName = `${val('#wo-number') || 'WO'}_${(val('#site-name') || 'WorkOrde
 
   function loadDraft() {
     try {
-      const raw = localStorage.getItem('fw_wo_draft');
+      const raw = localStorage.getItem('fw_wo_draft') || sessionStorage.getItem('fw_wo_draft');
       if (!raw) return;
       const data = JSON.parse(raw);
       if (data.fields) {
         Object.entries(data.fields).forEach(([id, val]) => {
           const el = document.getElementById(id);
           if (!el) return;
-          if (el.type === 'checkbox') el.checked = !!val;
-          else el.value = val;
+          if (el.type === 'checkbox' || el.type === 'radio') {
+            if (el.type === 'radio') el.checked = (el.value === val);
+            else el.checked = !!val;
+          } else el.value = val;
         });
+        // toolbox radios
+        if (data.fields['toolbox-held'] === 'YES' && $('#toolbox-yes')) {
+          $('#toolbox-yes').checked = true;
+          if ($('#toolbox-no')) $('#toolbox-no').checked = false;
+          if ($('#toolbox-times-wrap')) $('#toolbox-times-wrap').style.display = '';
+        }
       }
-      if (data.wo) {
-        $('#wo-number-display').textContent = data.wo;
+      if (data.wo || data.fields && data.fields['wo-number']) {
+        const jc = data.wo || data.fields['wo-number'];
+        if ($('#wo-number-display')) $('#wo-number-display').textContent = 'JOB CARD ' + jc;
       }
       if (data.photos) {
         state.photos = data.photos;
-        renderPhotos();
+        if (typeof renderPhotos === 'function') renderPhotos();
+      }
+      if (data.sigImages) {
+        state.sigImages = data.sigImages;
+        setTimeout(() => {
+          Object.keys(data.sigImages).forEach(id => {
+            try {
+              if (sigPads[id]) sigPads[id].fromDataURL(data.sigImages[id]);
+            } catch(_){}
+          });
+        }, 100);
+      }
+      // name sync after restore
+      if ($('#site-contact') && $('#client-rep-name')) {
+        if ($('#site-contact').value) $('#client-rep-name').value = $('#site-contact').value.toUpperCase();
+      }
+      if ($('#jha-tech-name') && $('#sig-tech-name') && $('#jha-tech-name').value) {
+        $('#sig-tech-name').value = $('#jha-tech-name').value.toUpperCase();
       }
       toast('Draft restored', 'success');
     } catch (_) {}
@@ -1510,7 +1612,17 @@ const fileName = `${val('#wo-number') || 'WO'}_${(val('#site-name') || 'WorkOrde
     });
 
     // PDF
-    $('#btn-generate-pdf').addEventListener('click', generatePDF);
+    $('#btn-generate-pdf').addEventListener('click', () => {
+      // sync names + signatures before PDF
+      if ($('#site-contact') && $('#client-rep-name') && $('#site-contact').value) {
+        if (!$('#client-rep-name').value) $('#client-rep-name').value = $('#site-contact').value.toUpperCase();
+      }
+      if ($('#jha-tech-name') && $('#sig-tech-name') && $('#jha-tech-name').value) {
+        $('#sig-tech-name').value = $('#jha-tech-name').value.toUpperCase();
+      }
+      ['sig-jha-tech','sig-jha-supervisor','sig-tech','sig-client'].forEach(id => { try { captureSigToState(id); } catch(_){} });
+      generatePDF();
+    });
     $('#btn-share').addEventListener('click', sharePDF);
     $('#btn-save-draft').addEventListener('click', saveDraft);
 
@@ -1695,7 +1807,7 @@ const fileName = `${val('#wo-number') || 'WO'}_${(val('#site-name') || 'WorkOrde
 
   // Signature file attachments embed into the same pad container (pad + file)
   function wireJhaSigFiles() {
-    ['sig-jha-tech', 'sig-jha-supervisor', 'sig-tech', 'sig-assist', 'sig-client'].forEach(id => {
+    ['sig-jha-tech', 'sig-jha-supervisor', 'sig-tech', 'sig-client'].forEach(id => {
       const fileInput = document.getElementById(id + '-file');
       if (!fileInput) return;
       fileInput.addEventListener('change', (e) => {
@@ -1703,30 +1815,113 @@ const fileName = `${val('#wo-number') || 'WO'}_${(val('#site-name') || 'WorkOrde
         if (!file) return;
         const reader = new FileReader();
         reader.onload = () => {
+          const dataUrl = reader.result;
+          state.sigImages[id] = dataUrl; // always available for PDF
           const canvas = document.getElementById(id);
           if (!canvas) return;
           const img = new Image();
           img.onload = () => {
-            const ctx = canvas.getContext('2d');
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
             const w = canvas.offsetWidth || 300;
             const h = 150;
+            // draw in CSS pixel space (context already scaled in initSignatures)
+            const ctx = canvas.getContext('2d');
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, w, h);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
             const scale = Math.min(w / img.width, h / img.height);
             const dw = img.width * scale;
             const dh = img.height * scale;
             ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
-            if (sigPads[id]) {
-              // mark pad as non-empty by drawing from data URL
-              try { sigPads[id].fromDataURL(canvas.toDataURL('image/png')); } catch (_) {}
-            }
+            try {
+              if (sigPads[id]) sigPads[id].fromDataURL(canvas.toDataURL('image/png'));
+            } catch (_) {}
+            state.sigImages[id] = canvas.toDataURL('image/png');
           };
-          img.src = reader.result;
+          img.src = dataUrl;
         };
         reader.readAsDataURL(file);
       });
     });
   }
   wireJhaSigFiles();
+
+  // Capture pad strokes into state when user finishes a stroke
+  ['sig-jha-tech', 'sig-jha-supervisor', 'sig-tech', 'sig-client'].forEach(id => {
+    const pad = sigPads[id];
+    if (!pad) return;
+    const capture = () => { try { if (!pad.isEmpty()) state.sigImages[id] = pad.toDataURL('image/png'); } catch(_){} };
+    pad.addEventListener('endStroke', capture);
+  });
+
+
+  // ---------- Auto CAPS (except GPS) + name sync ----------
+  function wireAutoCapsAndSync() {
+    const skip = new Set(['gps-lat','gps-lng','gps-status','gps-accuracy']);
+    document.addEventListener('input', (e) => {
+      const el = e.target;
+      if (!el || !el.id) return;
+      if (skip.has(el.id)) return;
+      if (el.type === 'file' || el.type === 'date' || el.type === 'time' || el.type === 'checkbox' || el.type === 'radio') return;
+      if (el.tagName === 'SELECT') return;
+      if (typeof el.value === 'string' && el.value && el.type !== 'email') {
+        const start = el.selectionStart, end = el.selectionEnd;
+        const up = el.value.toUpperCase();
+        if (el.value !== up) {
+          el.value = up;
+          try { el.setSelectionRange(start, end); } catch(_){}
+        }
+      }
+      // Live syncs
+      if (el.id === 'site-contact' && $('#client-rep-name')) {
+        $('#client-rep-name').value = el.value.toUpperCase();
+      }
+      if (el.id === 'jha-tech-name' && $('#sig-tech-name')) {
+        $('#sig-tech-name').value = el.value.toUpperCase();
+      }
+      if (el.id === 'wo-number' && $('#wo-number-display')) {
+        $('#wo-number-display').textContent = 'JOB CARD ' + (el.value || '—');
+      }
+    });
+    // Also on blur for selects / remaining
+    document.addEventListener('change', (e) => {
+      const el = e.target;
+      if (!el || !el.id) return;
+      if (el.id === 'site-contact' && $('#client-rep-name')) $('#client-rep-name').value = (el.value || '').toUpperCase();
+      if (el.id === 'jha-tech-name' && $('#sig-tech-name')) $('#sig-tech-name').value = (el.value || '').toUpperCase();
+    });
+  }
+  wireAutoCapsAndSync();
+
+  // Persist form when moving between steps (no data loss / no hard refresh)
+  const _origShowStep = showStep;
+  showStep = function(n) {
+    try { saveDraft(true); } catch(_){}
+    // Capture signatures before leaving step
+    ['sig-jha-tech','sig-jha-supervisor','sig-tech','sig-client'].forEach(captureSigToState);
+    _origShowStep(n);
+    // Restore sig images onto canvases if needed
+    setTimeout(() => {
+      Object.keys(state.sigImages || {}).forEach(id => {
+        const pad = sigPads[id];
+        const url = state.sigImages[id];
+        if (pad && url) {
+          try { pad.fromDataURL(url); } catch(_){}
+        }
+      });
+      // re-sync names
+      if ($('#site-contact') && $('#client-rep-name') && !$('#client-rep-name').value) {
+        $('#client-rep-name').value = ($('#site-contact').value || '').toUpperCase();
+      }
+      if ($('#jha-tech-name') && $('#sig-tech-name')) {
+        if ($('#jha-tech-name').value) $('#sig-tech-name').value = $('#jha-tech-name').value.toUpperCase();
+      }
+    }, 50);
+  };
+
+  // Quiet draft save
+  const _saveDraft = typeof saveDraft === 'function' ? saveDraft : null;
 
 })();

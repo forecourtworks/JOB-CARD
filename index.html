@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0d264d" />
-  <meta name="description" content="Forecourt Works Ltd – Digital Work Order Completion & Sign-Off Form" />
-  <title>Forecourt Works Ltd | Work Order Completion & Sign-Off Form</title>
+  <meta name="description" content="Forecourt Works Ltd – Digital JOB CARD & Sign-Off Form" />
+  <title>Forecourt Works Ltd | JOB CARD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <!-- Signature Pad -->
@@ -495,7 +495,7 @@
       </div>
     </div>
     <div class="wo-meta">
-      <span class="wo-badge" id="wo-number-display">WO-XXXX-XXXX</span>
+      <span class="wo-badge" id="wo-number-display">JOB CARD —</span>
       <span class="wo-badge" id="wo-date-display">—</span>
       <span class="wo-badge status-completed" id="wo-status-display">DRAFT</span>
     </div>
@@ -514,9 +514,9 @@
         </p>
 
         <div class="form-group">
-          <label>Work Order Number <span class="req">*</span></label>
-          <input type="text" id="wo-number" value="" placeholder="e.g. WO-2026-0847" required />
-          <div class="help">Editable – enter or accept the suggested number</div>
+          <label>JOB CARD No <span class="req">*</span></label>
+          <input type="text" id="wo-number" value="" placeholder="e.g. 2026-0087" required />
+          <div class="help">This number appears on the PDF as Job Card No</div>
         </div>
 
         <div class="row">
@@ -742,8 +742,8 @@
           </p>
           <div class="row">
             <div class="form-group" style="flex:1;">
-              <label>Technician's Name</label>
-              <input type="text" id="jha-tech-name" placeholder="Technician full name" />
+              <label>Technician's Name <span class="req">*</span></label>
+              <input type="text" id="jha-tech-name" placeholder="Technician full name" required />
               <div class="sig-pad-wrap" style="margin-top:6px;">
                 <canvas id="sig-jha-tech"></canvas>
               </div>
@@ -895,6 +895,7 @@
             <option value="NOT REPAIRED – LOCKED OUT">NOT REPAIRED – LOCKED OUT</option>
             <option value="RETURNED TO SERVICE – NO DEFECT FOUND">RETURNED TO SERVICE – NO DEFECT FOUND</option>
             <option value="TEMPORARILY RETURNED TO SERVICE">TEMPORARILY RETURNED TO SERVICE</option>
+            <option value="REPAIRED &amp; APPROVED FOR SERVICE SUBJECT TO STATUTORY APPROVAL">REPAIRED &amp; APPROVED FOR SERVICE SUBJECT TO STATUTORY APPROVAL</option>
           </select>
         </div>
         <div class="form-group">
@@ -943,7 +944,8 @@
         <div class="row" style="margin-top:10px;">
           <div class="form-group">
             <label>Name</label>
-            <input type="text" id="sig-tech-name" />
+            <input type="text" id="sig-tech-name" placeholder="Auto from PART B technician name" />
+            <div class="help">Auto from Job Safety acknowledgement technician name</div>
           </div>
           <div class="form-group">
             <label>Date</label>
@@ -951,18 +953,7 @@
           </div>
         </div>
 
-        <h4 style="font-size:0.95rem;margin:18px 0 10px;">Assisting Technician (optional)</h4>
-        <div class="sig-pad-wrap">
-          <canvas id="sig-assist"></canvas>
-        </div>
-        <div class="sig-actions">
-          <button type="button" class="btn btn-outline btn-sm" data-clear-sig="sig-assist">Clear</button>
-          <label class="btn btn-outline btn-sm" style="cursor:pointer;">Attach file
-            <input type="file" id="sig-assist-file" accept="image/*" style="display:none;" />
-          </label>
-        </div>
-
-        <hr style="margin:20px 0;border:none;border-top:1px solid var(--border);" />
+<hr style="margin:20px 0;border:none;border-top:1px solid var(--border);" />
 
         <h4 style="font-size:0.95rem;margin-bottom:10px;">Site Representative Acceptance <span class="req">*</span></h4>
         <div class="form-group">
@@ -971,7 +962,8 @@
         </div>
         <div class="form-group">
           <label>Site Representative Name <span class="req">*</span></label>
-          <input type="text" id="client-rep-name" required />
+          <input type="text" id="client-rep-name" required placeholder="Auto from Part A site contact" />
+          <div class="help">Auto-filled from Site Contact (Part A) — editable if needed</div>
         </div>
         <div class="form-group">
           <label>Position / Title</label>

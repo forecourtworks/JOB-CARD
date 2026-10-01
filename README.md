@@ -5,7 +5,9 @@
 First-line operational document for inspection, repair and maintenance work across fueling facilities and power systems.
 
 ## Document title
-**JOB COMPLETION & SIGN-OFF**
+**JOB COMPLETION & SIGN-OFF** (web product name: **JOB CARD**)
+
+Primary number field: **JOB CARD No** → PDF Job Card No.
 
 Meta pill: `Job Card No | Associated WO | Date (DD-MON-YYYY) | Status`
 
@@ -52,3 +54,12 @@ Open `index.html` in a modern browser (or serve statically). Complete steps → 
 
 ---
 Forecourt Works Limited · Ramco Court, GT 3B, South C, Nairobi · +254 729-002-087 · sales@forecourtworks.co.ke
+
+
+### Sign-off rules
+- PART B technician name + signature mandatory (pad or file)
+- Site representative name auto from Part A Site Contact
+- Lead tech name on PART I auto from PART B technician name
+- No assisting technician signature on PART I
+- All text inputs auto-CAPS (except GPS)
+- Form state persists across steps via localStorage/sessionStorage
