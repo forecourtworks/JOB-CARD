@@ -264,14 +264,41 @@
 
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=17&addressdetails=1&namedetails=1`,
           { headers: { 'Accept-Language': 'en', 'User-Agent': 'ForecourtWorks-JOB-CARD/1.0' } }
         );
         if (res.ok) {
           const data = await res.json();
-          if (data.display_name && $('#site-address')) {
-            $('#site-address').value = data.display_name;
-            toast(quality === 'good' ? 'Precise address filled from GPS' : 'Address filled (accuracy ±' + acc + ' m)', 'success');
+          if ($('#site-address')) {
+            // Prefer place / POI name (e.g. Ainushamsi Energy Pumwani) over street-only labels
+            const a = data.address || {};
+            const placeName = (
+              data.name ||
+              a.amenity || a.shop || a.industrial || a.office || a.building ||
+              a.workplace || a.fuel || a.retail || a.commercial || a.craft ||
+              a.tourism || a.university || a.college || a.hospital || a.clinic ||
+              a.man_made || a.railway || a.public_building || null
+            );
+            const locality = a.suburb || a.neighbourhood || a.village || a.town || a.city || a.county || '';
+            const road = a.road || a.pedestrian || a.path || '';
+            let label = '';
+            if (placeName) {
+              // Place first, then locality / road for context
+              label = [placeName, locality || road, a.city || a.town || a.state].filter(Boolean)
+                .filter((v, i, arr) => arr.indexOf(v) === i)
+                .join(', ');
+            } else if (data.display_name) {
+              // If display_name starts with a house number/road, try to demote pure road labels
+              label = data.display_name;
+            }
+            if (label) {
+              $('#site-address').value = label;
+              toast(
+                (placeName ? 'Place: ' + placeName : 'Address filled') +
+                (acc != null ? ' (±' + acc + ' m)' : ''),
+                'success'
+              );
+            }
           }
         }
       } catch (e) {
@@ -542,7 +569,8 @@
       ['equip-desc', 'Equipment description'],
       ['work-type', 'Work type'],
       ['reported-problem', 'Reported problem'],
-      ['work-date', 'Date of work'],
+      ['work-date', 'Work Start Date'],
+      ['work-end-date', 'Work End Date'],
       ['tech-lead', 'Lead Technician']
     ];
     for (const [id, label] of required) {
@@ -689,8 +717,30 @@
         maxWidth: 3.0
       });
       if (saved) {
-        try { sigPads[id].fromDataURL(saved); } catch (_) {}
+        // For file sources, show preview at original aspect; pad shows contain-drawn version
+        if (state.sigImageSource && state.sigImageSource[id] === 'file') {
+          showSigPreview(id, saved);
+          const img = new Image();
+          img.onload = () => { try { drawSigImageContain(canvas, img); } catch(_){} };
+          img.src = saved;
+        } else {
+          try { sigPads[id].fromDataURL(saved); } catch (_) {}
+        }
       }
+      // stroke capture
+      (function(pid) {
+        const p = sigPads[pid];
+        if (!p) return;
+        p.addEventListener('endStroke', () => {
+          try {
+            if (!p.isEmpty()) {
+              state.sigImages[pid] = p.toDataURL('image/png');
+              state.sigImageSource = state.sigImageSource || {};
+              state.sigImageSource[pid] = 'pad';
+            }
+          } catch(_){}
+        });
+      })(id);
     });
   }
 
@@ -706,10 +756,12 @@
   function clearSig(id) {
     if (sigPads[id]) sigPads[id].clear();
     if (state.sigImages) delete state.sigImages[id];
+    if (state.sigImageSource) delete state.sigImageSource[id];
+    hideSigPreview(id);
     const canvas = document.getElementById(id);
     if (canvas) {
       const ctx = canvas.getContext('2d');
-      const w = canvas.offsetWidth || 300, h = 150;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -785,6 +837,7 @@
       }
       // Sync technician name into PART I sign-off name field
       if ($('#sig-tech-name')) $('#sig-tech-name').value = val('#jha-tech-name').toUpperCase();
+      return true;
     }
     if (step === 7) {
       if (!$('#final-status').value) {
@@ -793,16 +846,18 @@
       }
     }
     if (step === 8) {
-      if (sigPads['sig-tech'] && sigPads['sig-tech'].isEmpty()) {
-        toast('Lead Technician signature is required', 'error');
+      captureSigToState('sig-tech');
+      captureSigToState('sig-client');
+      if (!getSigData('sig-tech')) {
+        toast('Lead Technician signature is required (pad or file)', 'error');
         return false;
       }
       if (!$('#client-rep-name').value.trim()) {
         toast('Site Representative name is required', 'error');
         return false;
       }
-      if (sigPads['sig-client'] && sigPads['sig-client'].isEmpty()) {
-        toast('Site Representative signature is required', 'error');
+      if (!getSigData('sig-client')) {
+        toast('Site Representative signature is required (pad or file)', 'error');
         return false;
       }
     }
@@ -841,7 +896,29 @@
   }
 
   // ---------- PDF Generation ----------
-  async function generatePDF() {
+  async 
+  /** Add image to jsPDF box without stretching (contain) */
+  function pdfAddImageContain(doc, dataUrl, x, y, boxW, boxH) {
+    if (!dataUrl) return;
+    try {
+      const props = doc.getImageProperties(dataUrl);
+      const iw = props.width || 1;
+      const ih = props.height || 1;
+      const scale = Math.min(boxW / iw, boxH / ih);
+      const dw = iw * scale;
+      const dh = ih * scale;
+      const ox = x + (boxW - dw) / 2;
+      const oy = y + (boxH - dh) / 2;
+      const fmt = dataUrl.indexOf('image/png') >= 0 || dataUrl.indexOf('image/PNG') >= 0 ? 'PNG' : 'JPEG';
+      doc.addImage(dataUrl, fmt, ox, oy, dw, dh);
+    } catch (e) {
+      try { doc.addImage(dataUrl, 'PNG', x, y, boxW, boxH); } catch (_) {
+        try { doc.addImage(dataUrl, 'JPEG', x, y, boxW, boxH); } catch (__) {}
+      }
+    }
+  }
+
+function generatePDF() {
     showOverlay('Building professional PDF…');
     try {
       const { jsPDF } = window.jspdf;
@@ -1436,10 +1513,7 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS');
           doc.setLineWidth(0.25);
           doc.roundedRect(x0, y + 10, half - 1, boxH, 1, 1, 'FD');
           if (sigData) {
-            try { doc.addImage(sigData, 'PNG', x0 + 1.5, y + 10.5, half - 4, boxH - 1); }
-            catch (_) {
-              try { doc.addImage(sigData, 'JPEG', x0 + 1.5, y + 10.5, half - 4, boxH - 1); } catch (__) {}
-            }
+            pdfAddImageContain(doc, sigData, x0 + 1.5, y + 10.5, half - 4, boxH - 1);
           }
         }
 
@@ -1936,6 +2010,46 @@ const fileName = buildPdfFileName();
   wireToolboxTalk();
 
   // Signature file attachments embed into the same pad container (pad + file)
+  function showSigPreview(id, dataUrl) {
+    const wrap = document.getElementById(id + '-preview-wrap');
+    const img = document.getElementById(id + '-preview');
+    if (wrap && img && dataUrl) {
+      img.src = dataUrl;
+      wrap.classList.add('show');
+    }
+  }
+
+  function hideSigPreview(id) {
+    const wrap = document.getElementById(id + '-preview-wrap');
+    const img = document.getElementById(id + '-preview');
+    if (wrap) wrap.classList.remove('show');
+    if (img) img.removeAttribute('src');
+  }
+
+  /** Draw image into signature canvas letterboxed (no stretch) */
+  function drawSigImageContain(canvas, img) {
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const parent = canvas.parentElement;
+    const w = Math.max(parent ? parent.clientWidth : 0, canvas.offsetWidth || 0, 200);
+    const h = 150;
+    canvas.width = Math.floor(w * ratio);
+    canvas.height = Math.floor(h * ratio);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Contain: preserve aspect ratio, no stretch
+    const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight, 1); // never upscale beyond original
+    const dw = img.naturalWidth * scale;
+    const dh = img.naturalHeight * scale;
+    const x = (w - dw) / 2;
+    const y = (h - dh) / 2;
+    ctx.drawImage(img, x * ratio, y * ratio, dw * ratio, dh * ratio);
+    return canvas.toDataURL('image/png');
+  }
+
   function wireJhaSigFiles() {
     ['sig-jha-tech', 'sig-jha-supervisor', 'sig-tech', 'sig-client'].forEach(id => {
       const fileInput = document.getElementById(id + '-file');
@@ -1943,33 +2057,47 @@ const fileName = buildPdfFileName();
       fileInput.addEventListener('change', (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
+        if (!file.type || !file.type.startsWith('image/')) {
+          toast('Please attach an image file (PNG/JPG)', 'error');
+          return;
+        }
         const reader = new FileReader();
         reader.onload = () => {
           const dataUrl = reader.result;
-          state.sigImages[id] = dataUrl; // always available for PDF
+          // Keep original file data URL for PDF (true original sizing source)
+          state.sigImages[id] = dataUrl;
+          state.sigImageSource = state.sigImageSource || {};
+          state.sigImageSource[id] = 'file';
+          showSigPreview(id, dataUrl);
+
           const canvas = document.getElementById(id);
-          if (!canvas) return;
+          if (!canvas) {
+            toast('Signature attached', 'success');
+            return;
+          }
           const img = new Image();
           img.onload = () => {
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            const w = canvas.offsetWidth || 300;
-            const h = 150;
-            // draw in CSS pixel space (context already scaled in initSignatures)
-            const ctx = canvas.getContext('2d');
-            ctx.save();
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.restore();
-            const scale = Math.min(w / img.width, h / img.height);
-            const dw = img.width * scale;
-            const dh = img.height * scale;
-            ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
             try {
-              if (sigPads[id]) sigPads[id].fromDataURL(canvas.toDataURL('image/png'));
-            } catch (_) {}
-            state.sigImages[id] = canvas.toDataURL('image/png');
+              drawSigImageContain(canvas, img);
+              // Re-bind SignaturePad so pad state is non-empty
+              if (sigPads[id]) {
+                try { sigPads[id].off(); } catch (_) {}
+              }
+              sigPads[id] = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255,255,255)',
+                penColor: 'rgb(20,20,20)',
+                minWidth: 1.2,
+                maxWidth: 3.0
+              });
+              // fromDataURL may stretch — skip; state.sigImages holds original
+              toast('Signature file attached', 'success');
+              try { saveDraft(true); } catch (_) {}
+            } catch (err) {
+              console.error(err);
+              toast('Could not display signature on pad — file is still saved for PDF', 'error');
+            }
           };
+          img.onerror = () => toast('Could not read signature image', 'error');
           img.src = dataUrl;
         };
         reader.readAsDataURL(file);
@@ -1979,12 +2107,25 @@ const fileName = buildPdfFileName();
   wireJhaSigFiles();
 
   // Capture pad strokes into state when user finishes a stroke
-  ['sig-jha-tech', 'sig-jha-supervisor', 'sig-tech', 'sig-client'].forEach(id => {
-    const pad = sigPads[id];
-    if (!pad) return;
-    const capture = () => { try { if (!pad.isEmpty()) state.sigImages[id] = pad.toDataURL('image/png'); } catch(_){} };
-    pad.addEventListener('endStroke', capture);
-  });
+  function wirePadStrokeCapture() {
+    ['sig-jha-tech', 'sig-jha-supervisor', 'sig-tech', 'sig-client'].forEach(id => {
+      const pad = sigPads[id];
+      if (!pad) return;
+      const capture = () => {
+        try {
+          if (!pad.isEmpty()) {
+            state.sigImages[id] = pad.toDataURL('image/png');
+            state.sigImageSource = state.sigImageSource || {};
+            state.sigImageSource[id] = 'pad';
+            hideSigPreview(id); // pad drawing supersedes file preview label optional — keep preview if file
+          }
+        } catch (_) {}
+      };
+      pad.addEventListener('endStroke', capture);
+    });
+  }
+  wirePadStrokeCapture();
+
 
 
   // ---------- Auto CAPS (except GPS) + name sync ----------
