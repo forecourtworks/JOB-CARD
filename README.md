@@ -55,11 +55,28 @@ Open `index.html` in a modern browser (or serve statically). Complete steps → 
 ---
 Forecourt Works Limited · Ramco Court, GT 3B, South C, Nairobi · +254 729-002-087 · sales@forecourtworks.co.ke
 
-
 ### Sign-off rules
 - PART B technician name + signature mandatory (pad or file)
 - Site representative name auto from Part A Site Contact
 - Lead tech name on PART I auto from PART B technician name
 - No assisting technician signature on PART I
-- All text inputs auto-CAPS (except GPS)
+- All text inputs auto-CAPS (except GPS and phone numbers)
 - Form state persists across steps via localStorage/sessionStorage
+
+## Contact list (📇)
+
+1. **Chrome or Edge on Android** over **HTTPS** (or localhost): taps 📇 open the system Contact Picker (name + phone).
+2. **Other browsers** (including most iOS): 📇 opens a **vCard (.vcf) file picker** — export a contact from your phone book as vCard and select it.
+3. You can always type name and telephone manually.
+
+## GPS
+- Uses high-accuracy GPS (`enableHighAccuracy`, no cache).
+- Prefers **place / POI names** (e.g. station names) over street-only labels when OpenStreetMap has them.
+
+## Signatures
+- Pad drawing **or** image file attach.
+- File attachments are shown in a preview and on the PDF without stretching (original aspect ratio).
+
+## PDF download name
+`JC#<last4>-<CLIENT4>-<SITE3>-<DD/MON/YY>.pdf`  
+Example: `JC#0067-AINU-PUM-01/OCT/26.pdf`
