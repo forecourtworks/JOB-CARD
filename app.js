@@ -365,44 +365,126 @@
     const nameId = target === 'client-rep' ? 'client-rep-name' : 'site-contact';
     const phoneId = target === 'client-rep' ? 'client-rep-phone' : 'site-contact-phone';
 
-    const supported = typeof navigator !== 'undefined' &&
-      'contacts' in navigator &&
-      'ContactsManager' in window;
-
-    if (!supported) {
-      toast('Contact picker not available in this browser. Use Chrome/Edge on Android, or type the number.', 'error');
-      const phone = $(phoneId);
-      if (phone) phone.focus();
-      return;
-    }
-    try {
-      const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-      if (!contacts || !contacts.length) return;
-      const c = contacts[0];
-      const name = (c.name && c.name[0]) ? String(c.name[0]) : '';
-      let tel = '';
-      if (c.tel && c.tel.length) {
-        tel = String(c.tel[0]);
-      }
+    function applyContact(name, tel) {
+      name = (name || '').trim();
+      tel = (tel || '').trim();
       if (name && $(nameId)) $(nameId).value = name.toUpperCase();
       if (tel && $(phoneId)) $(phoneId).value = tel;
-      // Keep Part A ↔ Part I in sync
       if (target === 'site-contact') {
-        if (name && $('#client-rep-name') && !$('#client-rep-name').value) $('#client-rep-name').value = name.toUpperCase();
-        if (tel && $('#client-rep-phone') && !$('#client-rep-phone').value) $('#client-rep-phone').value = tel;
+        if (name && $('#client-rep-name')) $('#client-rep-name').value = name.toUpperCase();
+        if (tel && $('#client-rep-phone')) $('#client-rep-phone').value = tel;
       }
-      toast('Contact applied', 'success');
+      if (target === 'client-rep') {
+        if (name && $('#site-contact') && !$('#site-contact').value) $('#site-contact').value = name.toUpperCase();
+        if (tel && $('#site-contact-phone') && !$('#site-contact-phone').value) $('#site-contact-phone').value = tel;
+      }
       try { saveDraft(true); } catch (_) {}
-    } catch (e) {
-      toast('Could not open contacts. Type the number manually.', 'error');
+      toast((name || tel) ? 'Contact applied' : 'No name/phone in selection', 'success');
     }
+
+    // Feature-detect Contact Picker (Chrome/Edge Android, HTTPS)
+    const hasPicker = !!(navigator.contacts && typeof navigator.contacts.select === 'function');
+
+    if (hasPicker) {
+      try {
+        // Request only supported properties when possible
+        let props = ['name', 'tel'];
+        try {
+          if (typeof navigator.contacts.getProperties === 'function') {
+            const available = await navigator.contacts.getProperties();
+            props = ['name', 'tel'].filter(p => available.includes(p));
+            if (!props.length) props = ['name', 'tel'];
+          }
+        } catch (_) {}
+
+        const contacts = await navigator.contacts.select(props, { multiple: false });
+        if (!contacts || !contacts.length) {
+          toast('No contact selected', 'error');
+          return;
+        }
+        const c = contacts[0];
+        const name = Array.isArray(c.name) ? (c.name[0] || '') : (c.name || '');
+        let tel = '';
+        if (Array.isArray(c.tel) && c.tel.length) {
+          tel = typeof c.tel[0] === 'string' ? c.tel[0] : (c.tel[0].value || c.tel[0] || '');
+        } else if (typeof c.tel === 'string') {
+          tel = c.tel;
+        }
+        applyContact(name, tel);
+        return;
+      } catch (e) {
+        console.warn('Contact Picker failed', e);
+        // fall through to vCard / manual
+      }
+    }
+
+    // Fallback: trigger hidden vCard / contact file input for this target
+    const vcf = document.getElementById(target + '-vcf');
+    if (vcf) {
+      toast('Opening file picker — choose a contact/vCard if available, or type the number.', 'success');
+      vcf.click();
+      return;
+    }
+    toast('Contact list not available on this browser. Type the name and phone, or use Chrome on Android (HTTPS).', 'error');
+    const phone = $(phoneId);
+    if (phone) phone.focus();
+  }
+
+  function parseVCard(text) {
+    const nameMatch = text.match(/FN[;:]([^\r\n]+)/i);
+    const telMatch = text.match(/TEL[^:]*:([^\r\n]+)/i);
+    let name = nameMatch ? nameMatch[1].trim() : '';
+    let tel = telMatch ? telMatch[1].trim() : '';
+    // Some vCards use N:Last;First
+    if (!name) {
+      const n = text.match(/^N[;:]([^\r\n]+)/im);
+      if (n) {
+        const parts = n[1].split(';');
+        name = [parts[1], parts[0]].filter(Boolean).join(' ').trim();
+      }
+    }
+    return { name, tel };
   }
 
   function wireContactPickers() {
     $$('.btn-contact-pick').forEach(btn => {
-      btn.addEventListener('click', () => {
+      // Avoid double-binding
+      if (btn.dataset.wired === '1') return;
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
         const t = btn.getAttribute('data-contact-for') || 'site-contact';
         pickContact(t);
+      });
+    });
+    // vCard file inputs
+    ['site-contact', 'client-rep'].forEach(target => {
+      const vcf = document.getElementById(target + '-vcf');
+      if (!vcf || vcf.dataset.wired === '1') return;
+      vcf.dataset.wired = '1';
+      vcf.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const { name, tel } = parseVCard(String(reader.result || ''));
+            const nameId = target === 'client-rep' ? 'client-rep-name' : 'site-contact';
+            const phoneId = target === 'client-rep' ? 'client-rep-phone' : 'site-contact-phone';
+            if (name && $(nameId)) $(nameId).value = name.toUpperCase();
+            if (tel && $(phoneId)) $(phoneId).value = tel;
+            if (target === 'site-contact') {
+              if (name && $('#client-rep-name')) $('#client-rep-name').value = name.toUpperCase();
+              if (tel && $('#client-rep-phone')) $('#client-rep-phone').value = tel;
+            }
+            toast(name || tel ? 'Contact imported from file' : 'Could not read name/phone from file', name || tel ? 'success' : 'error');
+            try { saveDraft(true); } catch (_) {}
+          } catch (err) {
+            toast('Could not read contact file', 'error');
+          }
+          vcf.value = '';
+        };
+        reader.readAsText(file);
       });
     });
   }
@@ -2105,6 +2187,7 @@ const fileName = buildPdfFileName();
     });
   }
   wireJhaSigFiles();
+  wireContactPickers();
 
   // Capture pad strokes into state when user finishes a stroke
   function wirePadStrokeCapture() {

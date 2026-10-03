@@ -55,12 +55,13 @@ Open `index.html` in a modern browser (or serve statically). Complete steps → 
 ---
 Forecourt Works Limited · Ramco Court, GT 3B, South C, Nairobi · +254 729-002-087 · sales@forecourtworks.co.ke
 
+
 ### Sign-off rules
 - PART B technician name + signature mandatory (pad or file)
 - Site representative name auto from Part A Site Contact
 - Lead tech name on PART I auto from PART B technician name
 - No assisting technician signature on PART I
-- All text inputs auto-CAPS (except GPS and phone numbers)
+- All text inputs auto-CAPS (except GPS)
 - Form state persists across steps via localStorage/sessionStorage
 
 ## Contact list (📇)
