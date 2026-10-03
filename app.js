@@ -12,6 +12,8 @@
     totalSteps: 10,
     photos: [],          // {id, dataUrl, name}
     signatures: {},      // canvas id → dataUrl
+    sigImages: {},       // canvas id → dataUrl (pad or file attach)
+    sigImageSource: {},  // canvas id → 'pad' | 'file'
     autoPopulated: false,
     pdfBlob: null,
     pdfFileName: ''
@@ -132,6 +134,7 @@
     const el = typeof sel === 'string' ? $(sel) : sel;
     return (el && el.value != null) ? String(el.value) : '';
   }
+  function val(sel) { return safeVal(sel); }
 
   /** Convert HH:MM (24h) or free text to h:mm AM/PM for PDF */
   function formatTimeAMPM(t) {
@@ -978,7 +981,6 @@
   }
 
   // ---------- PDF Generation ----------
-  async 
   /** Add image to jsPDF box without stretching (contain) */
   function pdfAddImageContain(doc, dataUrl, x, y, boxW, boxH) {
     if (!dataUrl) return;
@@ -1943,6 +1945,10 @@ const fileName = buildPdfFileName();
 
 // ===== FIXES OVERRIDE =====
 (function() {
+  // Local helpers (main app IIFE does not expose $)
+  function $(sel) { return document.querySelector(sel); }
+  function $$(sel) { return document.querySelectorAll(sel); }
+
   // Re-bind Add QC – 4-column format
   const btnQc = document.getElementById('btn-add-qc');
   if (btnQc) {
@@ -2186,28 +2192,8 @@ const fileName = buildPdfFileName();
       });
     });
   }
-  wireJhaSigFiles();
-  wireContactPickers();
+  // wireJhaSigFiles/wireContactPickers already run in main IIFE
 
-  // Capture pad strokes into state when user finishes a stroke
-  function wirePadStrokeCapture() {
-    ['sig-jha-tech', 'sig-jha-supervisor', 'sig-tech', 'sig-client'].forEach(id => {
-      const pad = sigPads[id];
-      if (!pad) return;
-      const capture = () => {
-        try {
-          if (!pad.isEmpty()) {
-            state.sigImages[id] = pad.toDataURL('image/png');
-            state.sigImageSource = state.sigImageSource || {};
-            state.sigImageSource[id] = 'pad';
-            hideSigPreview(id); // pad drawing supersedes file preview label optional — keep preview if file
-          }
-        } catch (_) {}
-      };
-      pad.addEventListener('endStroke', capture);
-    });
-  }
-  wirePadStrokeCapture();
 
 
 
@@ -2253,11 +2239,15 @@ const fileName = buildPdfFileName();
   wireAutoCapsAndSync();
 
   // Persist form when moving between steps (no data loss / no hard refresh)
+  // Note: showStep/state are closed over in main IIFE; only re-wrap if global
+  if (typeof showStep === 'function') {
   const _origShowStep = showStep;
   showStep = function(n) {
-    try { saveDraft(true); } catch(_){}
+    try { if (typeof saveDraft === 'function') saveDraft(true); } catch(_){}
     // Capture signatures before leaving step
-    ['sig-jha-tech','sig-jha-supervisor','sig-tech','sig-client'].forEach(captureSigToState);
+    if (typeof captureSigToState === 'function') {
+      ['sig-jha-tech','sig-jha-supervisor','sig-tech','sig-client'].forEach(captureSigToState);
+    }
     _origShowStep(n);
     // Restore sig images onto canvases if needed
     setTimeout(() => {
@@ -2277,6 +2267,7 @@ const fileName = buildPdfFileName();
       }
     }, 50);
   };
+  } // end typeof showStep guard
 
   // Quiet draft save
   const _saveDraft = typeof saveDraft === 'function' ? saveDraft : null;
