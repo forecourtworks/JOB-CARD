@@ -232,40 +232,154 @@
   // ---------- GPS ----------
   function getGPS() {
     const status = $('#gps-status');
+    if (!status) return;
     if (!navigator.geolocation) {
+      status.className = 'help gps-err';
       status.textContent = 'Geolocation not supported on this device.';
       return;
     }
-    status.textContent = 'Locating…';
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        status.textContent = `Coordinates: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-        // Attempt reverse geocode via free OpenStreetMap Nominatim (no key required)
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=16`,
-            { headers: { 'Accept-Language': 'en' } }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            if (data.display_name) {
-              $('#site-address').value = data.display_name;
-              toast('Address filled from GPS', 'success');
-            }
+    status.className = 'help';
+    status.textContent = 'Acquiring high-accuracy GPS… stay outdoors if possible.';
+    toast('Requesting precise location…', 'success');
+
+    // Clear any previous watch
+    if (state._gpsWatchId != null) {
+      try { navigator.geolocation.clearWatch(state._gpsWatchId); } catch (_) {}
+      state._gpsWatchId = null;
+    }
+
+    const applyFix = async (pos) => {
+      const { latitude, longitude, accuracy, altitude } = pos.coords;
+      const acc = accuracy != null ? Math.round(accuracy) : null;
+      // Prefer fixes better than 50 m; still accept weaker ones with a warning
+      const quality = acc == null ? 'unknown' : (acc <= 25 ? 'good' : (acc <= 80 ? 'fair' : 'coarse'));
+      status.className = 'help ' + (quality === 'good' ? 'gps-ok' : (quality === 'fair' ? 'gps-warn' : 'gps-err'));
+      status.textContent =
+        `Lat ${latitude.toFixed(6)}, Lon ${longitude.toFixed(6)}` +
+        (acc != null ? `  ·  accuracy ±${acc} m` : '') +
+        (quality === 'coarse' ? ' (move outdoors for better accuracy)' : '');
+
+      // Store raw coords for PDF / diagnostics
+      state.gps = { latitude, longitude, accuracy: acc, altitude, at: Date.now() };
+
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+          { headers: { 'Accept-Language': 'en', 'User-Agent': 'ForecourtWorks-JOB-CARD/1.0' } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.display_name && $('#site-address')) {
+            $('#site-address').value = data.display_name;
+            toast(quality === 'good' ? 'Precise address filled from GPS' : 'Address filled (accuracy ±' + acc + ' m)', 'success');
           }
-        } catch (e) {
-          $('#site-address').value = `Lat ${latitude.toFixed(5)}, Lon ${longitude.toFixed(5)} (reverse geocode unavailable)`;
-          toast('Coordinates captured. Please refine address manually.');
         }
-      },
-      (err) => {
-        status.textContent = 'Location access denied or unavailable.';
-        toast('Could not get location. Enter address manually.', 'error');
-      },
-      { enableHighAccuracy: true, timeout: 12000 }
-    );
+      } catch (e) {
+        if ($('#site-address') && !$('#site-address').value) {
+          $('#site-address').value = `Lat ${latitude.toFixed(6)}, Lon ${longitude.toFixed(6)}`;
+        }
+        toast('Coordinates captured. Refine address if needed.', 'success');
+      }
+    };
+
+    const onError = (err) => {
+      status.className = 'help gps-err';
+      const msg = err && err.code === 1
+        ? 'Location permission denied. Enable location for this site in browser settings.'
+        : (err && err.code === 3
+          ? 'GPS timed out. Move outdoors and try again.'
+          : 'Location unavailable. Enter address manually.');
+      status.textContent = msg;
+      toast(msg, 'error');
+    };
+
+    const geoOpts = {
+      enableHighAccuracy: true,  // use GPS chip, not just network/IP
+      timeout: 30000,            // allow up to 30s for a satellite fix
+      maximumAge: 0              // never use a cached/stale position
+    };
+
+    // 1) One-shot high-accuracy request
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      await applyFix(pos);
+      // 2) If accuracy is still coarse, watch briefly for a better fix
+      const acc = pos.coords.accuracy;
+      if (acc != null && acc > 40) {
+        status.textContent += ' · refining…';
+        let best = pos;
+        state._gpsWatchId = navigator.geolocation.watchPosition(
+          async (p2) => {
+            if (!best || (p2.coords.accuracy != null && p2.coords.accuracy < (best.coords.accuracy || 9999))) {
+              best = p2;
+              await applyFix(p2);
+            }
+            if (p2.coords.accuracy != null && p2.coords.accuracy <= 25) {
+              try { navigator.geolocation.clearWatch(state._gpsWatchId); } catch (_) {}
+              state._gpsWatchId = null;
+            }
+          },
+          () => {},
+          geoOpts
+        );
+        // Stop watching after 20s even if still coarse
+        setTimeout(() => {
+          if (state._gpsWatchId != null) {
+            try { navigator.geolocation.clearWatch(state._gpsWatchId); } catch (_) {}
+            state._gpsWatchId = null;
+          }
+        }, 20000);
+      }
+    }, onError, geoOpts);
   }
+
+  /** Contact Picker API — pick name + phone from device contacts */
+  async function pickContact(target) {
+    // target: 'site-contact' | 'client-rep'
+    const nameId = target === 'client-rep' ? 'client-rep-name' : 'site-contact';
+    const phoneId = target === 'client-rep' ? 'client-rep-phone' : 'site-contact-phone';
+
+    const supported = typeof navigator !== 'undefined' &&
+      'contacts' in navigator &&
+      'ContactsManager' in window;
+
+    if (!supported) {
+      toast('Contact picker not available in this browser. Use Chrome/Edge on Android, or type the number.', 'error');
+      const phone = $(phoneId);
+      if (phone) phone.focus();
+      return;
+    }
+    try {
+      const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      if (!contacts || !contacts.length) return;
+      const c = contacts[0];
+      const name = (c.name && c.name[0]) ? String(c.name[0]) : '';
+      let tel = '';
+      if (c.tel && c.tel.length) {
+        tel = String(c.tel[0]);
+      }
+      if (name && $(nameId)) $(nameId).value = name.toUpperCase();
+      if (tel && $(phoneId)) $(phoneId).value = tel;
+      // Keep Part A ↔ Part I in sync
+      if (target === 'site-contact') {
+        if (name && $('#client-rep-name') && !$('#client-rep-name').value) $('#client-rep-name').value = name.toUpperCase();
+        if (tel && $('#client-rep-phone') && !$('#client-rep-phone').value) $('#client-rep-phone').value = tel;
+      }
+      toast('Contact applied', 'success');
+      try { saveDraft(true); } catch (_) {}
+    } catch (e) {
+      toast('Could not open contacts. Type the number manually.', 'error');
+    }
+  }
+
+  function wireContactPickers() {
+    $$('.btn-contact-pick').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = btn.getAttribute('data-contact-for') || 'site-contact';
+        pickContact(t);
+      });
+    });
+  }
+
 
   // ---------- Auto-populate ----------
   function getTemplateKey() {
@@ -1072,7 +1186,7 @@ y = drawHeaderAndTitle();
       drawMetaGrid([
         ['CLIENT', val('#client-name')],
         ['SITE', val('#site-name')],
-        ['SITE CONTACT', val('#site-contact') || '-'],
+        ['SITE CONTACT', (val('#site-contact') || '-') + (val('#site-contact-phone') ? '  ·  ' + val('#site-contact-phone') : '')],
         ['EQUIPMENT ID', val('#equip-id')],
         ['EQUIPMENT TYPE', val('#equip-category') || val('#equip-desc')],
         ['DESCRIPTION', val('#equip-desc')],
@@ -1333,6 +1447,7 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS');
         const leadName = (val('#jha-tech-name') || val('#sig-tech-name') || val('#tech-lead') || '-');
         // Site rep: Part A site contact feeds client-rep-name
         const clientName = (val('#client-rep-name') || val('#site-contact') || '-');
+        const clientPhone = val('#client-rep-phone') || val('#site-contact-phone') || '';
         const clientTitle = val('#client-rep-title') || '';
 
         sigBlock(
@@ -1345,7 +1460,7 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS');
         sigBlock(
           m + half + 3,
           'CLIENT / SITE REPRESENTATIVE',
-          clientName + (clientTitle ? ' · ' + clientTitle : ''),
+          clientName + (clientTitle ? ' · ' + clientTitle : '') + (clientPhone ? '  ·  ' + clientPhone : ''),
           (val('#sig-client-date') || formatDateDDMONYYYY(val('#work-end-date') || val('#work-date'))) + (val('#sig-client-time') ? ' ' + formatTimeAMPM(val('#sig-client-time')) : ''),
           clientSig
         );
@@ -1874,7 +1989,7 @@ const fileName = buildPdfFileName();
 
   // ---------- Auto CAPS (except GPS) + name sync ----------
   function wireAutoCapsAndSync() {
-    const skip = new Set(['gps-lat','gps-lng','gps-status','gps-accuracy']);
+    const skip = new Set(['gps-lat','gps-lng','gps-status','gps-accuracy','site-contact-phone','client-rep-phone','site-address']);
     document.addEventListener('input', (e) => {
       const el = e.target;
       if (!el || !el.id) return;
@@ -1892,6 +2007,9 @@ const fileName = buildPdfFileName();
       // Live syncs
       if (el.id === 'site-contact' && $('#client-rep-name')) {
         $('#client-rep-name').value = el.value.toUpperCase();
+      }
+      if (el.id === 'site-contact-phone' && $('#client-rep-phone')) {
+        $('#client-rep-phone').value = el.value;
       }
       if (el.id === 'jha-tech-name' && $('#sig-tech-name')) {
         $('#sig-tech-name').value = el.value.toUpperCase();

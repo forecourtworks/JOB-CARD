@@ -574,6 +574,32 @@
       height: 160px;
     }
 
+  
+    .phone-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .phone-row input[type="tel"] {
+      flex: 1;
+      min-width: 0;
+    }
+    .btn-contact-pick {
+      flex-shrink: 0;
+      min-width: 42px;
+      height: 42px;
+      padding: 0 10px;
+      font-size: 1.15rem;
+      line-height: 1;
+    }
+    #gps-status {
+      font-size: 0.78rem;
+      margin-top: 4px;
+      color: var(--muted);
+    }
+    #gps-status.gps-ok { color: var(--success); font-weight: 600; }
+    #gps-status.gps-warn { color: var(--accent); }
+    #gps-status.gps-err { color: var(--danger); }
   </style>
 </head>
 <body>
@@ -634,14 +660,23 @@
           <input type="text" id="client-name" placeholder="e.g. AINUSHAMSI ENERGY LIMITED" required />
         </div>
 
+        <div class="form-group">
+          <label>Site / Station <span class="req">*</span></label>
+          <input type="text" id="site-name" placeholder="e.g. PUMWANI STATION" required />
+        </div>
+
         <div class="row">
           <div class="form-group">
-            <label>Site / Station <span class="req">*</span></label>
-            <input type="text" id="site-name" placeholder="e.g. PUMWANI STATION" required />
+            <label>Site Representative Name</label>
+            <input type="text" id="site-contact" placeholder="Station Manager / Duty Supervisor" autocomplete="name" />
           </div>
           <div class="form-group">
-            <label>Site Contact</label>
-            <input type="text" id="site-contact" placeholder="Station Manager / Duty Supervisor" />
+            <label>Site Representative Telephone</label>
+            <div class="phone-row">
+              <input type="tel" id="site-contact-phone" placeholder="+254 7XX XXX XXX" inputmode="tel" autocomplete="tel" />
+              <button type="button" class="btn btn-outline btn-sm btn-contact-pick" data-contact-for="site-contact" title="Pick from contacts">📇</button>
+            </div>
+            <div class="help">Tap 📇 to pick from your phone contacts (supported browsers)</div>
           </div>
         </div>
 
@@ -1055,10 +1090,20 @@
           <label>Acknowledgement statements (auto-filled – editable)</label>
           <textarea id="acceptance-text" rows="5" class="auto-filled"></textarea>
         </div>
-        <div class="form-group">
-          <label>Site Representative Name <span class="req">*</span></label>
-          <input type="text" id="client-rep-name" required placeholder="Auto from Part A site contact" />
-          <div class="help">Auto-filled from Site Contact (Part A) — editable if needed</div>
+        <div class="row">
+          <div class="form-group">
+            <label>Site Representative Name <span class="req">*</span></label>
+            <input type="text" id="client-rep-name" required placeholder="Auto from Part A" autocomplete="name" />
+            <div class="help">Auto-filled from Part A — editable</div>
+          </div>
+          <div class="form-group">
+            <label>Site Representative Telephone</label>
+            <div class="phone-row">
+              <input type="tel" id="client-rep-phone" placeholder="+254 7XX XXX XXX" inputmode="tel" autocomplete="tel" />
+              <button type="button" class="btn btn-outline btn-sm btn-contact-pick" data-contact-for="client-rep" title="Pick from contacts">📇</button>
+            </div>
+            <div class="help">Tap 📇 to pick from contacts</div>
+          </div>
         </div>
         <div class="form-group">
           <label>Position / Title</label>
