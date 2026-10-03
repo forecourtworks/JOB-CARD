@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0d264d" />
   <meta name="description" content="Forecourt Works Ltd – Digital JOB CARD & Sign-Off Form" />
   <title>Forecourt Works Ltd | JOB CARD</title>
@@ -58,7 +58,7 @@
       opacity: 0.85;
       margin-top: 2px;
     }
-    .Job Card-meta {
+    .wo-meta {
       display: flex;
       gap: 12px;
       margin-top: 12px;
@@ -166,8 +166,70 @@
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+    /* Tables scroll on narrow screens instead of overflowing page */
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 10px 0;
+    }
+    .data-table {
+      min-width: 480px;
+    }
+    .sig-pad-wrap canvas {
+      max-width: 100%;
+    }
+    .nav-footer .btn {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .header-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .header-top img {
+      width: min(120px, 28vw);
+      height: auto;
+      max-height: 42px;
+      background: #fff;
+      border-radius: 6px;
+      padding: 4px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    @media (max-width: 720px) {
+      .row-3 { grid-template-columns: 1fr 1fr; }
+      .app-header h1 { font-size: 1.05rem; }
+      .company-contact { font-size: 0.65rem !important; }
+    }
     @media (max-width: 560px) {
-      .row { grid-template-columns: 1fr; }
+      .row, .row-3 { grid-template-columns: 1fr; }
+      .container { padding: 10px 10px 20px; }
+      .step-body { padding: 12px; }
+      .app-header { padding: 12px 12px 14px; }
+      .app-header h1 { font-size: 0.95rem; }
+      .wo-badge { font-size: 0.68rem; padding: 3px 8px; }
+      .nav-footer {
+        padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+        flex-wrap: wrap;
+      }
+      .nav-footer .btn { font-size: 0.85rem; padding: 10px 12px; }
+      .sig-pad-wrap canvas { height: 140px; }
+      .step-header { font-size: 0.9rem !important; padding: 10px 12px; }
+      .form-group label { font-size: 0.75rem !important; }
+      input, select, textarea { font-size: 16px !important; } /* prevent iOS zoom */
+      .photo-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+    }
+    @media (max-width: 380px) {
+      .app-header h1 { font-size: 0.88rem; }
+      .header-top img { width: 72px; max-height: 36px; }
     }
     /* Auto-filled indicator */
     .auto-filled {
@@ -479,13 +541,46 @@
       background: #ffffff !important;
     }
 
+  
+    #qc-table-container, #hazards-container, #parts-container {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #hazards-container > div, #parts-container > div {
+      min-width: 0;
+    }
+    .item-card {
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .item-card .row { margin-top: 8px; }
+    /* Prevent horizontal page scroll */
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    img, canvas, video {
+      max-width: 100%;
+      height: auto;
+    }
+    canvas {
+      height: auto;
+    }
+    .sig-pad-wrap canvas {
+      height: 160px;
+    }
+
   </style>
 </head>
 <body>
   <!-- Header -->
   <header class="app-header">
     <div class="header-top" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:6px;">
-      <img id="header-logo" src="FORECOURT-SWL.png" alt="Forecourt Works Ltd Logo" style="width:120px;height:auto;max-height:42px;background:#fff;border-radius:6px;padding:4px;object-fit:contain;flex-shrink:0;" />
+      <img id="header-logo" src="forecourt-logo-mark.png" alt="Forecourt Works Ltd Logo" style="width:120px;height:auto;max-height:42px;background:#fff;border-radius:6px;padding:4px;object-fit:contain;flex-shrink:0;" />
       <div style="flex:1;min-width:0;">
         <h1>FORECOURT WORKS LTD</h1>
         <div class="company-contact" style="font-size:0.68rem;opacity:0.9;margin-top:4px;line-height:1.35;">
@@ -515,7 +610,7 @@
 
         <div class="form-group">
           <label>JOB CARD No <span class="req">*</span></label>
-          <input type="text" id="Job Card-number" value="" placeholder="e.g. 2026-0087" required />
+          <input type="text" id="wo-number" value="" placeholder="e.g. 2026-0087" required />
           <div class="help">This number appears on the PDF as Job Card No</div>
         </div>
 
@@ -526,7 +621,7 @@
           </div>
           <div class="form-group">
             <label>Status</label>
-            <select id="Job Card-status">
+            <select id="wo-status">
               <option value="DRAFT">DRAFT</option>
               <option value="IN PROGRESS">IN PROGRESS</option>
               <option value="COMPLETED">COMPLETED</option>

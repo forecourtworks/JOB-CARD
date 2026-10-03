@@ -546,23 +546,26 @@
 
   // ---------- Signatures ----------
   function initSignatures() {
-    ['sig-tech', 'sig-client', 'sig-jha-tech', 'sig-jha-supervisor'].forEach(id => {
+    const ids = ['sig-tech', 'sig-client', 'sig-jha-tech', 'sig-jha-supervisor'];
+    ids.forEach(id => {
       const canvas = document.getElementById(id);
       if (!canvas) return;
-      // Clear previous
+      const saved = (state.sigImages && state.sigImages[id]) || null;
       if (sigPads[id]) {
         try { sigPads[id].off(); } catch(e) {}
       }
       const ratio = Math.max(window.devicePixelRatio || 1, 1);
-      const w = canvas.offsetWidth || 300;
+      // Use parent width so pad tracks responsive layout
+      const parent = canvas.parentElement;
+      const w = Math.max(parent ? parent.clientWidth : 0, canvas.offsetWidth || 0, 200);
       const h = 150;
-      canvas.width = w * ratio;
-      canvas.height = h * ratio;
+      canvas.width = Math.floor(w * ratio);
+      canvas.height = Math.floor(h * ratio);
       canvas.style.width = w + 'px';
       canvas.style.height = h + 'px';
       const ctx = canvas.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(ratio, ratio);
-      // White background for print
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, w, h);
       sigPads[id] = new SignaturePad(canvas, {
@@ -571,8 +574,20 @@
         minWidth: 1.2,
         maxWidth: 3.0
       });
+      if (saved) {
+        try { sigPads[id].fromDataURL(saved); } catch (_) {}
+      }
     });
   }
+
+  // Re-fit signature pads when viewport rotates / resizes (responsive)
+  let _sigResizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(_sigResizeTimer);
+    _sigResizeTimer = setTimeout(() => {
+      try { initSignatures(); } catch (_) {}
+    }, 180);
+  });
 
   function clearSig(id) {
     if (sigPads[id]) sigPads[id].clear();
