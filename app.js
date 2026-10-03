@@ -1873,6 +1873,122 @@ const fileName = buildPdfFileName();
     } catch (_) {}
   }
 
+
+  // ---------- Signature file attachment (pad + file, same container) ----------
+  function showSigPreview(id, dataUrl) {
+    const wrap = document.getElementById(id + '-preview-wrap');
+    const img = document.getElementById(id + '-preview');
+    if (wrap && img && dataUrl) {
+      img.src = dataUrl;
+      wrap.classList.add('show');
+    }
+  }
+
+  function hideSigPreview(id) {
+    const wrap = document.getElementById(id + '-preview-wrap');
+    const img = document.getElementById(id + '-preview');
+    if (wrap) wrap.classList.remove('show');
+    if (img) img.removeAttribute('src');
+  }
+
+  function drawSigImageContain(canvas, img) {
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    const parent = canvas.parentElement;
+    const w = Math.max(parent ? parent.clientWidth : 0, canvas.offsetWidth || 0, 200);
+    const h = 150;
+    canvas.width = Math.floor(w * ratio);
+    canvas.height = Math.floor(h * ratio);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight, 1);
+    const dw = img.naturalWidth * scale;
+    const dh = img.naturalHeight * scale;
+    const x = (w - dw) / 2;
+    const y = (h - dh) / 2;
+    ctx.drawImage(img, x * ratio, y * ratio, dw * ratio, dh * ratio);
+    return canvas.toDataURL('image/png');
+  }
+
+  function wireAllSigFiles() {
+    state.sigImages = state.sigImages || {};
+    state.sigImageSource = state.sigImageSource || {};
+    ['sig-jha-tech', 'sig-jha-supervisor', 'sig-tech', 'sig-client'].forEach(id => {
+      const fileInput = document.getElementById(id + '-file');
+      if (!fileInput) return;
+      // Avoid double-binding
+      if (fileInput.dataset.wired === '1') return;
+      fileInput.dataset.wired = '1';
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (!file.type || !file.type.startsWith('image/')) {
+          toast('Please attach an image file (PNG/JPG)', 'error');
+          e.target.value = '';
+          return;
+        }
+        // Size guard ~4MB
+        if (file.size > 4 * 1024 * 1024) {
+          toast('Signature image is too large (max 4 MB)', 'error');
+          e.target.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result;
+          state.sigImages[id] = dataUrl;
+          state.sigImageSource[id] = 'file';
+          showSigPreview(id, dataUrl);
+
+          const canvas = document.getElementById(id);
+          if (!canvas) {
+            toast('Signature file attached', 'success');
+            try { saveDraft(true); } catch (_) {}
+            return;
+          }
+          const img = new Image();
+          img.onload = () => {
+            try {
+              drawSigImageContain(canvas, img);
+              // Mark pad non-empty so getSigData / SignaturePad checks pass
+              if (typeof SignaturePad !== 'undefined') {
+                if (sigPads[id]) {
+                  try { sigPads[id].off(); } catch (_) {}
+                }
+                sigPads[id] = new SignaturePad(canvas, {
+                  backgroundColor: 'rgb(255,255,255)',
+                  penColor: 'rgb(20,20,20)',
+                  minWidth: 1.2,
+                  maxWidth: 3.0
+                });
+                // Force pad to consider content present by drawing once into its data
+                try {
+                  // SignaturePad has no public setNonEmpty; rely on state.sigImages + pixel check in getSigData
+                } catch (_) {}
+              }
+              toast('Signature file attached', 'success');
+              try { saveDraft(true); } catch (_) {}
+            } catch (err) {
+              console.error(err);
+              // File is still in state.sigImages for PDF
+              toast('Signature file saved for PDF (preview may be limited)', 'success');
+              try { saveDraft(true); } catch (_) {}
+            }
+          };
+          img.onerror = () => toast('Could not read signature image', 'error');
+          img.src = dataUrl;
+        };
+        reader.onerror = () => toast('Could not read file', 'error');
+        reader.readAsDataURL(file);
+      });
+    });
+  }
+
+  function wireJhaSigFiles() { wireAllSigFiles(); }
+
   // ---------- Init & Events ----------
   function init() {
     // Defaults
@@ -1960,6 +2076,7 @@ const fileName = buildPdfFileName();
 
     // Wire contacts, signature file attach, toolbox, auto-caps
     try { if (typeof wireContactPickers === 'function') wireContactPickers(); } catch (e) { console.warn(e); }
+    try { wireAllSigFiles(); } catch (e) { console.warn(e); }
     try { if (typeof wireJhaSigFiles === 'function') wireJhaSigFiles(); } catch (e) { console.warn(e); }
     try { if (typeof wireToolboxTalk === 'function') wireToolboxTalk(); } catch (e) { console.warn(e); }
     try { if (typeof wireAutoCapsAndSync === 'function') wireAutoCapsAndSync(); } catch (e) { console.warn(e); }
