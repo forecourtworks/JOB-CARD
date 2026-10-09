@@ -81,3 +81,21 @@ Forecourt Works Limited · Ramco Court, GT 3B, South C, Nairobi · +254 729-002-
 ## PDF download name
 `JC#<last4>-<CLIENT4>-<SITE3>-<DD/MON/YY>.pdf`  
 Example: `JC#0067-AINU-PUM-01/OCT/26.pdf`
+
+
+## Default sample data (embedded)
+
+On first open (no `localStorage` draft), the form is seeded from **JC#0067 – PETROSOMA ENERGY / SALGAA** (Air Compressor emergency repair, 09-OCT-2026):
+
+- Job Card No `00067`, status COMPLETED
+- Client PETROSOMA ENERGY · Site SALGAA · Contact Isaak Mohammed
+- Equipment PETR/033/SAL-01/COMP#001 · Jaguar air compressor · Emergency repair
+- Root cause: phase imbalance; spares MCB, MPCB, phase failure relay, DOL starter (Tronics)
+- Full JHA, QC, scope, findings, recommendations, and Part H/I text from the signed PDF
+
+## Persistence (no reset on tab reload)
+
+- Draft is written to **`localStorage`** key `fw_wo_draft` (mirrored in `sessionStorage`)
+- Auto-saves ~600 ms after any input/change and on step navigation
+- Restores fields, dynamic JHA/QC/parts rows, PPE checks, photos, signatures, and current step
+- Manual **Save draft** button still available
