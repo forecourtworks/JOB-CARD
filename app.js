@@ -642,40 +642,10 @@
     });
   }
 
-  function fillQC(rows) {
-    const container = $('#qc-table-container');
-    if (!container) return;
-    let html = `<table class="data-table"><thead><tr>
-      <th>QC INSPECTION/TESTING</th>
-      <th>ACCEPTANCE CRITERIA</th>
-      <th>OBSERVATION/TEST RESULTS</th>
-      <th>REMARKS</th>
-    </tr></thead><tbody>`;
-    rows.forEach(r => {
-      // Map legacy fields: test → inspection, criterion → criteria, result C/NC or PASS→C, remarks from asFound/asLeft
-      const inspection = r.test || r.inspection || '';
-      const criteria = r.criterion || r.criteria || '';
-      let obs = r.result || r.observation || '';
-      if (obs === 'PASS' || obs === 'YES') obs = 'CONFORMING (C)';
-      if (obs === 'FAIL' || obs === 'NO') obs = 'NON CONFORMING (NC)';
-      if (obs !== 'CONFORMING (C)' && obs !== 'NON CONFORMING (NC)') obs = 'CONFORMING (C)';
-      const remarks = r.remarks || r.asFound || r.asLeft || '';
-      html += `<tr>
-        <td><input class="qc-inspection auto-filled" value="${escapeAttr(inspection)}" /></td>
-        <td><input class="qc-criteria auto-filled" value="${escapeAttr(criteria)}" /></td>
-        <td>
-          <select class="qc-observation auto-filled" style="font-weight:700;">
-            <option value="CONFORMING (C)" ${obs==='CONFORMING (C)'?'selected':''} style="color:#15803d;">CONFORMING (C)</option>
-            <option value="NON CONFORMING (NC)" ${obs==='NON CONFORMING (NC)'?'selected':''} style="color:#b91c1c;">NON CONFORMING (NC)</option>
-          </select>
-        </td>
-        <td><input class="qc-remarks auto-filled" value="${escapeAttr(remarks)}" /></td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    container.innerHTML = html;
-    // Colour the observation selects
-    container.querySelectorAll('.qc-observation').forEach(sel => {
+  function wireQcObservationColours(root) {
+    (root || document).querySelectorAll('.qc-observation').forEach(sel => {
+      if (sel._qcColourWired) return;
+      sel._qcColourWired = true;
       const applyColour = () => {
         if (sel.value.includes('CONFORMING (C)')) {
           sel.style.color = '#15803d';
@@ -690,38 +660,108 @@
     });
   }
 
-  function fillParts(parts) {
-    const container = $('#parts-container');
-    container.innerHTML = '';
+  function buildQcRowHtml(r) {
+    r = r || {};
+    const inspection = r.test || r.inspection || '';
+    const criteria = r.criterion || r.criteria || '';
+    let obs = r.result || r.observation || '';
+    if (obs === 'PASS' || obs === 'YES') obs = 'CONFORMING (C)';
+    if (obs === 'FAIL' || obs === 'NO') obs = 'NON CONFORMING (NC)';
+    if (obs !== 'CONFORMING (C)' && obs !== 'NON CONFORMING (NC)') obs = 'CONFORMING (C)';
+    const remarks = r.remarks || r.asFound || r.asLeft || '';
+    return `<tr>
+        <td><input class="qc-inspection auto-filled" value="${escapeAttr(inspection)}" placeholder="Inspection / test item" /></td>
+        <td><input class="qc-criteria auto-filled" value="${escapeAttr(criteria)}" placeholder="Acceptance criteria" /></td>
+        <td>
+          <select class="qc-observation auto-filled" style="font-weight:700;">
+            <option value="CONFORMING (C)" ${obs==='CONFORMING (C)'?'selected':''} style="color:#15803d;">CONFORMING (C)</option>
+            <option value="NON CONFORMING (NC)" ${obs==='NON CONFORMING (NC)'?'selected':''} style="color:#b91c1c;">NON CONFORMING (NC)</option>
+          </select>
+        </td>
+        <td><input class="qc-remarks auto-filled" value="${escapeAttr(remarks)}" placeholder="Remarks" /></td>
+        <td style="text-align:center;width:72px;">
+          <button type="button" class="btn btn-outline btn-sm btn-remove-qc" title="Remove this QC test" style="color:#b91c1c;border-color:#fca5a5;padding:4px 8px;font-size:11px;">− REMOVE</button>
+        </td>
+      </tr>`;
+  }
+
+  function ensureQcTable() {
+    const container = $('#qc-table-container');
+    if (!container) return null;
+    let tbody = container.querySelector('tbody');
+    if (!tbody) {
+      container.innerHTML = `<table class="data-table"><thead><tr>
+        <th>QC INSPECTION/TESTING</th>
+        <th>ACCEPTANCE CRITERIA</th>
+        <th>OBSERVATION/TEST RESULTS</th>
+        <th>REMARKS</th>
+        <th style="width:72px;"></th>
+      </tr></thead><tbody></tbody></table>`;
+      tbody = container.querySelector('tbody');
+    }
+    return tbody;
+  }
+
+  function fillQC(rows) {
+    const container = $('#qc-table-container');
+    if (!container) return;
+    const list = Array.isArray(rows) ? rows : [];
+    let html = `<table class="data-table"><thead><tr>
+      <th>QC INSPECTION/TESTING</th>
+      <th>ACCEPTANCE CRITERIA</th>
+      <th>OBSERVATION/TEST RESULTS</th>
+      <th>REMARKS</th>
+      <th style="width:72px;"></th>
+    </tr></thead><tbody>`;
+    list.forEach(r => { html += buildQcRowHtml(r); });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    wireQcObservationColours(container);
+    try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
+  }
+
+  function addQcRow(prefill) {
+    const tbody = ensureQcTable();
+    if (!tbody) return;
+    tbody.insertAdjacentHTML('beforeend', buildQcRowHtml(prefill || {}));
+    const tr = tbody.lastElementChild;
+    if (tr) wireQcObservationColours(tr);
+    try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
+  }
+
+  function removeQcRow(btn) {
+    const tr = btn && btn.closest ? btn.closest('tr') : null;
+    if (!tr) return;
+    tr.remove();
+    try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
+  }
+
+  function buildPartCardHtml(p) {
+    p = p || {};
     const today = todayISO();
     const oneYear = new Date();
     oneYear.setFullYear(oneYear.getFullYear() + 1);
     const endDate = oneYear.toISOString().slice(0, 10);
-
-    if (!parts.length) {
-      container.innerHTML = '<p class="help">No parts auto-suggested. Add any parts used.</p>';
-      return;
-    }
-    parts.forEach(p => {
-      const div = document.createElement('div');
-      div.style.border = '1px solid var(--border)';
-      div.style.padding = '10px';
-      div.style.borderRadius = '8px';
-      div.style.marginBottom = '10px';
-      div.innerHTML = `
-                <div class="form-group"><label>Name &amp; Part Number</label>
-          <input type="text" class="part-desc auto-filled" value="${escapeAttr(p.desc)}" /></div>
+    const status = (p.status || 'NEW').toUpperCase();
+    return `
+      <div class="item-card part-card" style="border:1px solid var(--border);padding:10px;border-radius:8px;margin-bottom:10px;position:relative;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;">
+          <strong style="font-size:12px;color:var(--muted,#64748b);">Spare part</strong>
+          <button type="button" class="btn btn-outline btn-sm btn-remove-part" title="Remove this part" style="color:#b91c1c;border-color:#fca5a5;padding:4px 8px;font-size:11px;">− REMOVE</button>
+        </div>
+        <div class="form-group"><label>Name &amp; Part Number</label>
+          <input type="text" class="part-desc auto-filled" value="${escapeAttr(p.desc || '')}" placeholder="e.g. MCB / MPCB" /></div>
         <div class="row">
           <div class="form-group"><label>Qty</label>
-            <input type="text" class="part-qty auto-filled" value="${escapeAttr(p.qty)}" /></div>
+            <input type="text" class="part-qty auto-filled" value="${escapeAttr(p.qty || '1')}" /></div>
           <div class="form-group"><label>Status</label>
             <select class="part-status auto-filled">
-              <option value="NEW" ${(p.status||'').toUpperCase()==='NEW'?'selected':''}>NEW</option>
-              <option value="RECONDITIONED" ${(p.status||'').toUpperCase()==='RECONDITIONED'||(p.status||'').toLowerCase()==='reconditioned'?'selected':''}>RECONDITIONED</option>
+              <option value="NEW" ${status==='NEW'?'selected':''}>NEW</option>
+              <option value="RECONDITIONED" ${status==='RECONDITIONED'?'selected':''}>RECONDITIONED</option>
             </select></div>
         </div>
         <div class="form-group"><label>Vendor / Source</label>
-          <input type="text" class="part-vendor auto-filled" value="${escapeAttr(p.vendor)}" /></div>
+          <input type="text" class="part-vendor auto-filled" value="${escapeAttr(p.vendor || '')}" /></div>
         <div class="row">
           <div class="form-group"><label>Install Date</label>
             <input type="date" class="part-install auto-filled" value="${p.installDate || today}" /></div>
@@ -730,9 +770,42 @@
         </div>
         <div class="form-group"><label>Warranty End</label>
           <input type="date" class="part-wend auto-filled" value="${p.warrantyEnd || endDate}" /></div>
-      `;
-      container.appendChild(div);
+      </div>`;
+  }
+
+  function fillParts(parts) {
+    const container = $('#parts-container');
+    if (!container) return;
+    const list = Array.isArray(parts) ? parts : [];
+    container.innerHTML = '';
+    if (!list.length) {
+      container.innerHTML = '<p class="help parts-empty-hint">No parts listed. Use + ADD ROW to add spare parts.</p>';
+      return;
+    }
+    list.forEach(p => {
+      container.insertAdjacentHTML('beforeend', buildPartCardHtml(p));
     });
+    try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
+  }
+
+  function addPartRow(prefill) {
+    const container = $('#parts-container');
+    if (!container) return;
+    const hint = container.querySelector('.parts-empty-hint');
+    if (hint) hint.remove();
+    container.insertAdjacentHTML('beforeend', buildPartCardHtml(prefill || {}));
+    try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
+  }
+
+  function removePartRow(btn) {
+    const card = btn && btn.closest ? btn.closest('.part-card, .item-card, #parts-container > div') : null;
+    if (!card) return;
+    card.remove();
+    const container = $('#parts-container');
+    if (container && !container.querySelector('.part-card, .item-card, .part-desc')) {
+      container.innerHTML = '<p class="help parts-empty-hint">No parts listed. Use + ADD ROW to add spare parts.</p>';
+    }
+    try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
   }
 
   function escapeHtml(s) {
@@ -1910,7 +1983,8 @@ const fileName = buildPdfFileName();
   }
 
   function collectParts() {
-    return Array.from($$('#parts-container > .item-card, #parts-container > div')).map(node => ({
+    const nodes = $$('#parts-container .part-card, #parts-container .item-card, #parts-container > div');
+    return Array.from(nodes).filter(node => node.querySelector('.part-desc')).map(node => ({
       desc: node.querySelector('.part-desc')?.value || '',
       qty: node.querySelector('.part-qty')?.value || '',
       status: node.querySelector('.part-status')?.value || 'NEW',
@@ -2207,7 +2281,16 @@ const fileName = buildPdfFileName();
   function wireJhaSigFiles() { wireAllSigFiles(); }
 
   // ---------- Init & Events ----------
+  // Expose QC / Parts row helpers for external override handlers
+  window.fillQC = fillQC;
+  window.fillParts = fillParts;
+  window.addQcRow = addQcRow;
+  window.removeQcRow = removeQcRow;
+  window.addPartRow = addPartRow;
+  window.removePartRow = removePartRow;
+
   function init() {
+
     // Defaults
     if ($('#doc-date')) $('#doc-date').value = todayISO();
     if ($('#work-date')) $('#work-date').value = todayISO();
@@ -2282,6 +2365,24 @@ const fileName = buildPdfFileName();
       existing.push({ hazard: '', risk: 'Medium', control: '', verified: false });
       fillHazards(existing);
     });
+    if ($('#btn-add-qc')) {
+      $('#btn-add-qc').addEventListener('click', () => addQcRow({}));
+    }
+    if ($('#btn-add-part')) {
+      $('#btn-add-part').addEventListener('click', () => addPartRow({}));
+    }
+    // − REMOVE via event delegation (QC rows + spare parts)
+    document.addEventListener('click', (e) => {
+      const t = e.target;
+      if (!t || !t.classList) return;
+      if (t.classList.contains('btn-remove-qc')) {
+        e.preventDefault();
+        removeQcRow(t);
+      } else if (t.classList.contains('btn-remove-part')) {
+        e.preventDefault();
+        removePartRow(t);
+      }
+    });
 
     // Resize sig pads on orientation change
     window.addEventListener('resize', () => {
@@ -2321,76 +2422,101 @@ const fileName = buildPdfFileName();
   function $(sel) { return document.querySelector(sel); }
   function $$(sel) { return document.querySelectorAll(sel); }
 
-  // Re-bind Add QC – 4-column format
+  // Re-bind Add QC – uses main fill helpers + REMOVE column
   const btnQc = document.getElementById('btn-add-qc');
   if (btnQc) {
     btnQc.onclick = function() {
-      const container = document.getElementById('qc-table-container');
-      if (!container) return;
-      let tbody = container.querySelector('tbody');
-      if (!tbody) {
-        container.innerHTML = `<table class="data-table"><thead><tr>
-          <th>QC INSPECTION/TESTING</th>
-          <th>ACCEPTANCE CRITERIA</th>
-          <th>OBSERVATION/TEST RESULTS</th>
-          <th>REMARKS</th>
-        </tr></thead><tbody></tbody></table>`;
-        tbody = container.querySelector('tbody');
+      if (typeof addQcRow === 'function') addQcRow({});
+      else {
+        const container = document.getElementById('qc-table-container');
+        if (!container) return;
+        let tbody = container.querySelector('tbody');
+        if (!tbody) {
+          container.innerHTML = `<table class="data-table"><thead><tr>
+            <th>QC INSPECTION/TESTING</th><th>ACCEPTANCE CRITERIA</th>
+            <th>OBSERVATION/TEST RESULTS</th><th>REMARKS</th><th style="width:72px;"></th>
+          </tr></thead><tbody></tbody></table>`;
+          tbody = container.querySelector('tbody');
+        }
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input class="qc-inspection" value="" placeholder="Inspection / test item" /></td>
+          <td><input class="qc-criteria" value="" placeholder="Acceptance criteria" /></td>
+          <td>
+            <select class="qc-observation" style="font-weight:700;color:#15803d;">
+              <option value="CONFORMING (C)" selected>CONFORMING (C)</option>
+              <option value="NON CONFORMING (NC)">NON CONFORMING (NC)</option>
+            </select>
+          </td>
+          <td><input class="qc-remarks" value="" placeholder="Remarks" /></td>
+          <td style="text-align:center;width:72px;">
+            <button type="button" class="btn btn-outline btn-sm btn-remove-qc" style="color:#b91c1c;border-color:#fca5a5;padding:4px 8px;font-size:11px;">− REMOVE</button>
+          </td>`;
+        tbody.appendChild(tr);
       }
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input class="qc-inspection" value="" placeholder="Inspection / test item" /></td>
-        <td><input class="qc-criteria" value="" placeholder="Acceptance criteria" /></td>
-        <td>
-          <select class="qc-observation" style="font-weight:700;color:#15803d;">
-            <option value="CONFORMING (C)" selected style="color:#15803d;">CONFORMING (C)</option>
-            <option value="NON CONFORMING (NC)" style="color:#b91c1c;">NON CONFORMING (NC)</option>
-          </select>
-        </td>
-        <td><input class="qc-remarks" value="" placeholder="Remarks" /></td>`;
-      tbody.appendChild(tr);
-      const sel = tr.querySelector('.qc-observation');
-      if (sel) {
-        sel.addEventListener('change', function() {
-          this.style.color = this.value.includes('CONFORMING (C)') ? '#15803d' : '#b91c1c';
-        });
-      }
+      try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
     };
   }
 
-  // Re-bind Add Part
+  // Re-bind Add Part – uses main fill helpers + REMOVE
   const btnPart = document.getElementById('btn-add-part');
   if (btnPart) {
     btnPart.onclick = function() {
-      const container = document.getElementById('parts-container');
-      if (!container) return;
-      const today = new Date().toISOString().slice(0,10);
-      const end = new Date(); end.setFullYear(end.getFullYear()+1);
-      const endDate = end.toISOString().slice(0,10);
-      const div = document.createElement('div');
-      div.className = 'item-card';
-      div.innerHTML = `
-        <div class="form-group"><label>Description</label>
-          <input type="text" class="part-desc" value="" /></div>
-        <div class="row">
-          <div class="form-group"><label>Qty</label><input type="text" class="part-qty" value="1" /></div>
-          <div class="form-group"><label>Status</label>
-            <select class="part-status"><option>New</option><option>Reconditioned</option></select></div>
-        </div>
-        <div class="form-group"><label>Vendor / Source</label>
-          <input type="text" class="part-vendor" value="" /></div>
-        <div class="row">
-          <div class="form-group"><label>Install Date</label>
-            <input type="date" class="part-install" value="${today}" /></div>
-          <div class="form-group"><label>Warranty Start</label>
-            <input type="date" class="part-wstart" value="${today}" /></div>
-        </div>
-        <div class="form-group"><label>Warranty End</label>
-          <input type="date" class="part-wend" value="${endDate}" /></div>
-        <button type="button" class="btn btn-outline btn-sm" onclick="this.parentElement.remove()">Remove</button>`;
-      container.appendChild(div);
+      if (typeof addPartRow === 'function') addPartRow({});
+      else {
+        const container = document.getElementById('parts-container');
+        if (!container) return;
+        const today = new Date().toISOString().slice(0,10);
+        const end = new Date(); end.setFullYear(end.getFullYear()+1);
+        const endDate = end.toISOString().slice(0,10);
+        const div = document.createElement('div');
+        div.className = 'item-card part-card';
+        div.style.cssText = 'border:1px solid var(--border);padding:10px;border-radius:8px;margin-bottom:10px;';
+        div.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <strong style="font-size:12px;color:#64748b;">Spare part</strong>
+            <button type="button" class="btn btn-outline btn-sm btn-remove-part" style="color:#b91c1c;border-color:#fca5a5;padding:4px 8px;font-size:11px;">− REMOVE</button>
+          </div>
+          <div class="form-group"><label>Name &amp; Part Number</label>
+            <input type="text" class="part-desc" value="" /></div>
+          <div class="row">
+            <div class="form-group"><label>Qty</label><input type="text" class="part-qty" value="1" /></div>
+            <div class="form-group"><label>Status</label>
+              <select class="part-status"><option value="NEW" selected>NEW</option><option value="RECONDITIONED">RECONDITIONED</option></select></div>
+          </div>
+          <div class="form-group"><label>Vendor / Source</label><input type="text" class="part-vendor" value="" /></div>
+          <div class="row">
+            <div class="form-group"><label>Install Date</label><input type="date" class="part-install" value="${today}" /></div>
+            <div class="form-group"><label>Warranty Start</label><input type="date" class="part-wstart" value="${today}" /></div>
+          </div>
+          <div class="form-group"><label>Warranty End</label><input type="date" class="part-wend" value="${endDate}" /></div>`;
+        const hint = container.querySelector('.parts-empty-hint');
+        if (hint) hint.remove();
+        container.appendChild(div);
+      }
+      try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
     };
   }
+
+  // Event delegation for − REMOVE on QC rows and spare parts
+  document.addEventListener('click', function(e) {
+    const t = e.target;
+    if (!t) return;
+    if (t.classList && t.classList.contains('btn-remove-qc')) {
+      e.preventDefault();
+      if (typeof removeQcRow === 'function') removeQcRow(t);
+      else { const tr = t.closest('tr'); if (tr) tr.remove(); }
+      try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
+      return;
+    }
+    if (t.classList && t.classList.contains('btn-remove-part')) {
+      e.preventDefault();
+      if (typeof removePartRow === 'function') removePartRow(t);
+      else { const card = t.closest('.part-card, .item-card'); if (card) card.remove(); }
+      try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
+      return;
+    }
+  });
 
   // Force re-init signatures when step 8 is shown
   const origShowStep = window.showStep;

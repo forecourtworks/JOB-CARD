@@ -994,7 +994,10 @@
           <textarea id="qc-intro" rows="2" class="auto-filled"></textarea>
         </div>
         <div id="qc-table-container"></div>
-        <button type="button" class="btn btn-outline btn-sm" id="btn-add-qc" class="btn-add-row" style="margin:8px 0;">+ ADD ROW</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;align-items:center;">
+          <button type="button" class="btn btn-outline btn-sm" id="btn-add-qc" style="margin:0;">+ ADD QC TEST</button>
+          <span class="help" style="margin:0;">Use − REMOVE on a row to delete it</span>
+        </div>
         <div class="form-group">
           <label>Overall QC Conclusion</label>
           <textarea id="qc-conclusion" rows="3" class="auto-filled"></textarea>
@@ -1011,7 +1014,10 @@
       <div class="step-body">
         <div class="auto-banner">⚡ Suggested parts for this repair. Edit quantities, vendors, warranty dates as needed.</div>
         <div id="parts-container"></div>
-        <button type="button" class="btn btn-outline btn-sm" id="btn-add-part" class="btn-add-row" style="margin:8px 0;">+ ADD ROW</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;align-items:center;">
+          <button type="button" class="btn btn-outline btn-sm" id="btn-add-part" style="margin:0;">+ ADD SPARE PART</button>
+          <span class="help" style="margin:0;">Use − REMOVE on a card to delete it</span>
+        </div>
         <div class="form-group">
           <label>Traceability Note</label>
           <textarea id="parts-traceability" rows="3" class="auto-filled"></textarea>
