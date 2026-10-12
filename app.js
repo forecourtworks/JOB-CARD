@@ -1,5 +1,5 @@
 /**
- * FORECOURT WORKS LTD – Digital Technical Service Work Order App
+ * FORECOURT WORKS LTD – Digital Technical Service JOB CARD
  * Progressive web form with auto-population, GPS, camera, signatures & PDF export
  */
 
@@ -23,12 +23,12 @@
   /** Default placeholders extracted from JC#0067-PETROSOMA 09_OCT_26 (Air Compressor emergency repair).
    * Applied only when no localStorage draft exists so the form is pre-filled and survives reloads. */
   const DEFAULT_JOB_CARD = {
-    wo: '00067',
+    jc: '00067',
     step: 0,
     fields: {
-      'wo-number': '00067',
+      'jc-number': '00067',
       'doc-date': '2026-08-29',
-      'wo-status': 'COMPLETED',
+      'jc-status': 'COMPLETED',
       'client-name': 'PETROSOMA ENERGY',
       'site-name': 'SALGAA',
       'site-contact': 'ISAAK MOHAMMED',
@@ -59,7 +59,7 @@
       'safety-declaration': 'By signing below, I certify that I have conducted a pre-job safety assessment and am wearing all required Personal Protective Equipment (PPE) for this task. I acknowledge that I have reviewed the safety hazards associated with this work order, understand the safe operating procedures, and agree to perform the work in compliance with company health and safety standards.',
       'scope-summary': 'Scope limited to the work type selected and the equipment identified. All work performed under controlled conditions.',
       'scope-steps': '1. SITE ARRIVAL.\n2. ISOLATION AND LOTO AS REQUIRED.\n3. DIAGNOSIS / INSPECTION AS APPLICABLE.\n4. CORRECTIVE OR PREVENTIVE ACTIONS.\n5. TESTING AND VERIFICATION.\n6. DOCUMENTATION AND HANDOVER.',
-      'deliverables': '• COMPLETED WORK ORDER\n• PHOTOS OF WORK\n• QC TESTING RESULTS\n• RECOMMENDATIONS',
+      'deliverables': '• COMPLETED JOB CARD\n• PHOTOS OF WORK\n• QC TESTING RESULTS\n• RECOMMENDATIONS',
       'findings-arrival': 'TEAM ARRIVAL. WORK AREA ESTABLISHED AND EQUIPMENT ISOLATED AS REQUIRED.',
       'findings-diagnosis': 'INSPECTION AND DIAGNOSIS PERFORMED AS PER APPLICABLE SOP.',
       'findings-rootcause': 'THE ROOT CAUSE OF THE FREQUENT MOTOR CONTROL DEVICES BURN OUT WAS TRACED TO THE RAMPANT PHASE IMBALANCE IN THE AREA',
