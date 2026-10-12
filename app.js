@@ -17,8 +17,15 @@
     autoPopulated: false,
     pdfBlob: null,
     pdfFileName: '',
+    pdfBackedUp: false,
     _gpsWatchId: null
   };
+
+  /** Default Associated Work Order No (replaces the old random WO-2026-XXXX numbers). */
+  const DEFAULT_WO_NUMBER = 'WO#00067';
+  /** Supervisor name that used to be seeded by default, and its replacement. */
+  const LEGACY_DEFAULT_SUPERVISOR = 'ISAAK MOHAMMED';
+  const DEFAULT_SUPERVISOR = 'B.O';
 
   /** Default placeholders extracted from JC#0067-PETROSOMA 09_OCT_26 (Air Compressor emergency repair).
    * Applied only when no localStorage draft exists so the form is pre-filled and survives reloads. */
@@ -26,9 +33,8 @@
     jc: '00067',
     step: 0,
     fields: {
-      'jc-number': '00067',
+      'wo-number': 'WO#00067',
       'doc-date': '2026-08-29',
-      'jc-status': 'COMPLETED',
       'client-name': 'PETROSOMA ENERGY',
       'site-name': 'SALGAA',
       'site-contact': 'ISAAK MOHAMMED',
@@ -55,8 +61,8 @@
       'toolbox-end': '',
       'toolbox-time': '',
       'jha-tech-name': 'STEPHEN AWIDI',
-      'jha-supervisor-name': 'ISAAK MOHAMMED',
-      'safety-declaration': 'By signing below, I certify that I have conducted a pre-job safety assessment and am wearing all required Personal Protective Equipment (PPE) for this task. I acknowledge that I have reviewed the safety hazards associated with this work order, understand the safe operating procedures, and agree to perform the work in compliance with company health and safety standards.',
+      'jha-supervisor-name': 'B.O',
+      'safety-declaration': 'By signing below, I certify that I have conducted a pre-job safety assessment and am wearing all required Personal Protective Equipment (PPE) for this task. I acknowledge that I have reviewed the safety hazards associated with this job card, understand the safe operating procedures, and agree to perform the work in compliance with company health and safety standards.',
       'scope-summary': 'Scope limited to the work type selected and the equipment identified. All work performed under controlled conditions.',
       'scope-steps': '1. SITE ARRIVAL.\n2. ISOLATION AND LOTO AS REQUIRED.\n3. DIAGNOSIS / INSPECTION AS APPLICABLE.\n4. CORRECTIVE OR PREVENTIVE ACTIONS.\n5. TESTING AND VERIFICATION.\n6. DOCUMENTATION AND HANDOVER.',
       'deliverables': '• COMPLETED JOB CARD\n• PHOTOS OF WORK\n• QC TESTING RESULTS\n• RECOMMENDATIONS',
@@ -68,7 +74,7 @@
       'qc-intro': 'QUALITY CONTROL CHECKS PERFORMED WITH THE RELEVANT ELECTRICAL TESTING TOOLS AS/WHERE APPLICABLE.',
       'qc-conclusion': 'ALL REQUIRED QC CHECKS COMPLETED SATISFACTORILY.',
       'parts-traceability': 'ANY REMOVED COMPONENTS TAGGED AND RETAINED AS REQUIRED. NEW PARTS RECORDED WITH WARRANTY INFORMATION',
-      'recommendations': '1. CONTINUE NORMAL OPERATION.\n2. INCLUDE EQUIPMENT IN NEXT SCHEDULED PM CYCLE.\n3. RETAIN THIS WORK ORDER IN THE SITE EQUIPMENT HISTORY FILE.',
+      'recommendations': '1. CONTINUE NORMAL OPERATION.\n2. INCLUDE EQUIPMENT IN NEXT SCHEDULED PM CYCLE.\n3. RETAIN THIS JOB CARD IN THE SITE EQUIPMENT HISTORY FILE.',
       'final-status': 'REPAIRED AND RETURNED TO SERVICE',
       'final-status-text': 'WORK COMPLETED. AIR COMPRESSOR RETURNED TO SERVICE IN A SAFE CONDITION.',
       'tech-declaration': 'I CONFIRM THE WORK WAS PERFORMED IN ACCORDANCE WITH APPLICABLE SOPS AND SAFETY REQUIREMENTS. THE EQUIPMENT HAS BEEN LEFT IN A SAFE CONDITION.',
@@ -136,7 +142,7 @@
 8. System reassembly, restoration of power and product, leak checks, and functional testing.
 9. Post-repair calibration / accuracy verification to confirm performance within statutory and manufacturer tolerance.
 10. Documentation of all findings, parts, test results, and recommendations; client handover.`,
-      deliverables: `• Completed and signed Technical Service Work Order (this document)
+      deliverables: `• Completed and signed Technical Service Job Card (this document)
 • Photographic evidence of nameplate, as-found condition, removed component, installed component, and final condition
 • Calibration / accuracy test results (before and after)
 • Parts traceability records and warranty information
@@ -160,17 +166,17 @@
         { desc: 'Diesel Flowmeter Assembly (OEM-spec, compatible with Encore / equivalent platform) – complete with seals', qty: '1', status: 'New', vendor: 'Authorized Distributor', installDate: '', warrantyStart: '', warrantyEnd: '' },
         { desc: 'Meter seals / gasket kit (as required for installation)', qty: '1 set', status: 'New', vendor: 'Same as above', installDate: '', warrantyStart: '', warrantyEnd: '' }
       ],
-      partsTrace: 'Removed flowmeter retained and tagged with Work Order number for client inspection or further analysis if required. New part serial number and batch details are recorded in the job file and on the photographic evidence pack. Warranty is subject to correct operation and exclusion of damage from misuse, contamination, or unauthorized adjustment.',
+      partsTrace: 'Removed flowmeter retained and tagged with Job Card number for client inspection or further analysis if required. New part serial number and batch details are recorded in the job file and on the photographic evidence pack. Warranty is subject to correct operation and exclusion of damage from misuse, contamination, or unauthorized adjustment.',
       recommendations: `1. Immediate: The dispenser has been returned to service within tolerance. Continue normal commercial operation.
 2. Short-term (next 30–60 days): Monitor the newly installed meter for any drift or unusual noise/vibration. Report any anomaly immediately.
 3. Preventive Maintenance: Include this dispenser in the next scheduled quarterly PM cycle. Particular attention should be paid to filter condition, pulser cleanliness, and verification of accuracy at least annually or as required by local Weights & Measures regulations.
 4. Fleet-wide Opportunity: Consider a systematic accuracy audit of remaining diesel dispensers at this station and sister sites to identify any other meters approaching end-of-life accuracy limits. Proactive replacement prevents revenue loss from over-issuance and protects the client from under-delivery claims.
-5. Record Keeping: This Work Order and associated calibration data should be retained in the site equipment history file for the life of the asset and for regulatory audit readiness.`,
+5. Record Keeping: This Job Card and associated calibration data should be retained in the site equipment history file for the life of the asset and for regulatory audit readiness.`,
       finalStatus: 'REPAIRED AND RETURNED TO SERVICE',
       finalStatusText: 'The diesel flowmeter has been successfully diagnosed, replaced, and verified. All quality control tests have been passed. The dispenser has been functionally tested, leak-checked, and is hereby declared REPAIRED AND RETURNED TO SERVICE in a safe, accurate, and commercially usable condition. The equipment is NOT locked out. It is released for normal customer fuelling operations under the supervision of the site operator.',
       techDeclaration: 'I, the undersigned Lead Technician, confirm that the work described herein was performed in accordance with the applicable Standard Operating Procedure, manufacturer guidelines, and all site safety requirements. All statements of fact are true and accurate to the best of my knowledge. The equipment has been left in a safe condition.',
       acceptanceText: `I, the undersigned authorized representative of the Client at this Station, acknowledge that:
-• The work described in this Work Order has been explained to me.
+• The work described in this Job Card has been explained to me.
 • I have been given the opportunity to inspect the completed work and the photographic / test evidence.
 • The dispenser has been returned to service in my presence (or with my knowledge).
 • I accept the equipment back into operational control of the Station.
@@ -189,7 +195,7 @@
     toolboxTime: '',
     scopeSummary: 'Scope limited to the work type selected and the equipment identified. All work performed under controlled conditions.',
     scopeSteps: '1. Site arrival, induction and toolbox talk.\n2. Isolation and LOTO where required.\n3. Diagnosis / inspection as applicable.\n4. Corrective or preventive actions.\n5. Testing and verification.\n6. Documentation and handover.',
-    deliverables: '• Completed Work Order\n• Photos of work\n• Test / calibration results (if applicable)\n• Recommendations',
+    deliverables: '• Completed Job Card\n• Photos of work\n• Test / calibration results (if applicable)\n• Recommendations',
     findingsArrival: 'Team arrived, completed induction and toolbox talk. Work area established and equipment isolated as required.',
     findingsDiagnosis: 'Inspection and diagnosis performed as per applicable SOP.',
     findingsRootCause: 'Root cause determined from diagnostic findings.',
@@ -202,7 +208,7 @@
     qcConclusion: 'All required QC checks completed satisfactorily.',
     parts: [],
     partsTrace: 'Any removed components tagged and retained as required. New parts recorded with warranty information.',
-    recommendations: '1. Continue normal operation.\n2. Include equipment in next scheduled PM cycle.\n3. Retain this Work Order in the site equipment history file.',
+    recommendations: '1. Continue normal operation.\n2. Include equipment in next scheduled PM cycle.\n3. Retain this Job Card in the site equipment history file.',
     finalStatus: 'REPAIRED AND RETURNED TO SERVICE',
     finalStatusText: 'Work completed. Equipment returned to service in a safe condition.',
     techDeclaration: 'I confirm the work was performed in accordance with applicable SOPs and safety requirements. The equipment has been left in a safe condition.',
@@ -248,32 +254,51 @@
   }
 
 
-  /** PDF download: JC#<last4>-<CLIENT4>-<SITE3>-<DD/MON/YY>.pdf
-   * Example: 2026-0067, Ainushamsi Energy, Pumwani, 01-OCT-2026
-   *       → JC#0067-AINU-PUM-01/OCT/26.pdf
-   */
-  function buildPdfFileName() {
-    const jc = (val('#wo-number') || '').trim();
-    let serial = '0000';
-    const m = jc.match(/-(\d+)\s*$/);
-    if (m) serial = m[1].slice(-4).padStart(4, '0');
-    else {
-      const digits = jc.replace(/\D/g, '');
-      serial = (digits.slice(-4) || '0000').padStart(4, '0');
-    }
-    const client = (val('#client-name') || 'XXXX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 4).padEnd(4, 'X');
-    const site = (val('#site-name') || 'XXX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3).padEnd(3, 'X');
-    let d = val('#work-end-date') || val('#work-date') || '';
-    const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-    if (/^\d{4}-\d{2}-\d{2}/.test(d)) {
-      const [yy, mm, dd] = d.slice(0, 10).split('-');
-      d = dd + '/' + mons[parseInt(mm, 10) - 1] + '/' + yy.slice(-2);
-    } else if (!d) {
-      d = '00/XXX/00';
-    }
-    return 'JC#' + serial + '-' + client + '-' + site + '-' + d + '.pdf';
+  const DATE_MONS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+  /** ISO (YYYY-MM-DD) -> DD-MON-YYYY. Returns '' when blank/invalid (used by the on-screen date display). */
+  function isoToDMY(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+    if (!m) return '';
+    const mon = DATE_MONS[parseInt(m[2], 10) - 1];
+    return mon ? (m[3] + '-' + mon + '-' + m[1]) : '';
   }
 
+  /** ISO (YYYY-MM-DD) -> DD.MM.YYYY. Used ONLY in the PDF file name. */
+  function isoToDotDate(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+    return m ? (m[3] + '.' + m[2] + '.' + m[1]) : '';
+  }
+
+  /** "WO#00067" / "WO-0067" / "wo 67" -> "00067" / "0067" / "67" */
+  function jobCardNumberFromWO(wo) {
+    return String(wo || '').trim().replace(/^WO[\s#\-_.:]*/i, '').trim();
+  }
+
+  /** JOB CARD NUMBER = auto-derived from the entered ASSOCIATED WORK ORDER NO (#wo-number). */
+  function getJobCardNumber() {
+    return jobCardNumberFromWO(safeVal('#wo-number'));
+  }
+
+  /** Header badges: JOB CARD NUMBER (auto from Associated Work Order No) + document date in DD-MON-YYYY. */
+  function refreshHeaderBadges() {
+    const n = $('#wo-number-display');
+    if (n) n.textContent = 'JOB CARD NUMBER: ' + (getJobCardNumber() || '—');
+    const d = $('#wo-date-display');
+    if (d) d.textContent = isoToDMY(safeVal('#doc-date')) || '—';
+  }
+
+  /** PDF download: JC#<JOB CARD NUMBER>-<CLIENT4>-<SITE3>-<DD.MM.YYYY>.pdf
+   *  The JOB CARD NUMBER is auto-derived from the Associated Work Order No (WO#00067 → 00067).
+   *  Example: JC#00067-AINU-PUM-12.10.2026.pdf
+   *  Dots (not slashes) separate the date, so the saved and the emailed file names are identical. */
+  function buildPdfFileName() {
+    const jc = (getJobCardNumber() || '0000').replace(/[\\/:*?"<>|\s]+/g, '-');
+    const client = (val('#client-name') || 'XXXX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 4).padEnd(4, 'X');
+    const site = (val('#site-name') || 'XXX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3).padEnd(3, 'X');
+    const d = isoToDotDate(val('#work-end-date') || val('#work-date')) || '00.00.0000';
+    return 'JC#' + jc + '-' + client + '-' + site + '-' + d + '.pdf';
+  }
 
   function toast(msg, type = '') {
     const el = $('#toast');
@@ -290,15 +315,14 @@
     $('#overlay').classList.remove('show');
   }
 
-  function generateWONumber() {
-    const now = new Date();
-    const y = now.getFullYear();
-    const r = String(Math.floor(Math.random() * 9000) + 1000);
-    return `WO-${y}-${r}`;
+  /** Local calendar date as YYYY-MM-DD (toISOString() is UTC and gives "yesterday" after 21:00 in Nairobi). */
+  function isoDateLocal(d) {
+    const p = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
   }
 
   function todayISO() {
-    return new Date().toISOString().slice(0, 10);
+    return isoDateLocal(new Date());
   }
 
   function updateProgress() {
@@ -461,91 +485,205 @@
     }, onError, geoOpts);
   }
 
-  /** Contact Picker API — pick name + phone from device contacts */
-  async function pickContact(target) {
-    // target: 'site-contact' | 'client-rep'
-    const nameId = target === 'client-rep' ? 'client-rep-name' : 'site-contact';
-    const phoneId = target === 'client-rep' ? 'client-rep-phone' : 'site-contact-phone';
+  // ---------- Date display: DD-MON-YYYY everywhere on screen ----------
+  // Each native <input type="date"> keeps holding the ISO value (drafts, validation and the PDF read it
+  // unchanged). A read-only text field underneath shows it as DD-MON-YYYY; tapping opens the native picker.
+  function decorateDateInput(inp) {
+    if (!inp || !inp.parentNode || (inp.dataset && inp.dataset.dmyWired === '1')) return;
+    inp.dataset.dmyWired = '1';
+    const wrap = document.createElement('div');
+    wrap.className = 'date-dmy-wrap';
+    const disp = document.createElement('input');
+    disp.type = 'text';
+    disp.readOnly = true;
+    disp.tabIndex = -1;
+    disp.className = 'date-dmy-display';
+    disp.placeholder = 'DD-MON-YYYY';
+    disp.setAttribute('aria-hidden', 'true');
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(disp);
+    wrap.appendChild(inp);
+    const sync = () => { disp.value = isoToDMY(inp.value); };
+    try {
+      // Programmatic `el.value = ...` (draft restore, defaults) must refresh the display too
+      const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+      Object.defineProperty(inp, 'value', {
+        configurable: true,
+        get() { return desc.get.call(this); },
+        set(v) { desc.set.call(this, v); sync(); }
+      });
+    } catch (_) {}
+    inp.addEventListener('input', sync);
+    inp.addEventListener('change', sync);
+    inp.addEventListener('click', () => { try { if (inp.showPicker) inp.showPicker(); } catch (_) {} });
+    sync();
+  }
 
-    function applyContact(name, tel) {
-      name = (name || '').trim();
-      tel = (tel || '').trim();
-      if (name && $(nameId)) $(nameId).value = name.toUpperCase();
-      if (tel && $(phoneId)) $(phoneId).value = tel;
-      if (target === 'site-contact') {
-        if (name && $('#client-rep-name')) $('#client-rep-name').value = name.toUpperCase();
-        if (tel && $('#client-rep-phone')) $('#client-rep-phone').value = tel;
-      }
-      if (target === 'client-rep') {
-        if (name && $('#site-contact') && !$('#site-contact').value) $('#site-contact').value = name.toUpperCase();
-        if (tel && $('#site-contact-phone') && !$('#site-contact-phone').value) $('#site-contact-phone').value = tel;
-      }
-      try { saveDraft(true); } catch (_) {}
-      toast((name || tel) ? 'Contact applied' : 'No name/phone in selection', 'success');
+  function decorateDateInputs(root) {
+    (root || document).querySelectorAll('input[type="date"]').forEach(decorateDateInput);
+  }
+
+  function startDateDecorator() {
+    decorateDateInputs(document);
+    try {
+      // Part cards (warranty dates) are created later – decorate them as they appear
+      new MutationObserver(muts => {
+        muts.forEach(m => m.addedNodes.forEach(n => {
+          if (n.nodeType !== 1) return;
+          if (n.matches && n.matches('input[type="date"]')) decorateDateInput(n);
+          else if (n.querySelectorAll) decorateDateInputs(n);
+        }));
+      }).observe(document.body, { childList: true, subtree: true });
+    } catch (_) {}
+  }
+
+  // ---------- Device contacts: Contact Picker API (+ vCard fallback) ----------
+  const CONTACT_TARGETS = {
+    'site-contact': { nameId: 'site-contact', phoneId: 'site-contact-phone' },
+    'client-rep':   { nameId: 'client-rep-name', phoneId: 'client-rep-phone' }
+  };
+
+  /** Kenyan numbers -> "+254 7XX XXX XXX" (matches the field placeholder); other numbers are only tidied. */
+  function normalizePhone(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    let digits = s.replace(/\D/g, '');
+    if (!digits) return '';
+    let intl = s.charAt(0) === '+';
+    if (!intl && digits.indexOf('00') === 0) { digits = digits.slice(2); intl = true; }
+    if (!intl) {
+      if (/^0[17]\d{8}$/.test(digits)) { digits = '254' + digits.slice(1); intl = true; }
+      else if (/^[17]\d{8}$/.test(digits)) { digits = '254' + digits; intl = true; }
+      else if (/^254[17]\d{8}$/.test(digits)) { intl = true; }
     }
+    if (intl && /^254[17]\d{8}$/.test(digits)) {
+      return '+254 ' + digits.slice(3, 6) + ' ' + digits.slice(6, 9) + ' ' + digits.slice(9);
+    }
+    return intl ? '+' + digits : s.replace(/[^\d+\s()-]/g, '').trim();
+  }
 
-    // Feature-detect Contact Picker (Chrome/Edge Android, HTTPS)
-    const hasPicker = !!(navigator.contacts && typeof navigator.contacts.select === 'function');
+  /** Small modal list – resolves with the chosen item, or null if dismissed. */
+  function chooseOne(title, items) {
+    return new Promise(resolve => {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#fff;border-radius:12px;max-width:340px;width:100%;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.3);';
+      const head = document.createElement('div');
+      head.textContent = title;
+      head.style.cssText = 'font-weight:700;margin-bottom:10px;';
+      box.appendChild(head);
+      const done = (v) => { wrap.remove(); resolve(v); };
+      items.forEach(text => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-outline btn-block';
+        b.style.marginBottom = '8px';
+        b.textContent = text;
+        b.addEventListener('click', () => done(text));
+        box.appendChild(b);
+      });
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'btn btn-block';
+      cancel.textContent = 'Cancel';
+      cancel.addEventListener('click', () => done(null));
+      box.appendChild(cancel);
+      wrap.addEventListener('click', (e) => { if (e.target === wrap) done(null); });
+      wrap.appendChild(box);
+      document.body.appendChild(wrap);
+    });
+  }
 
-    if (hasPicker) {
+  /** Put a picked/imported contact into the right fields (site contact and client rep stay in sync). */
+  function applyContactToTarget(target, name, tel) {
+    const cfg = CONTACT_TARGETS[target] || CONTACT_TARGETS['site-contact'];
+    name = String(name || '').trim().toUpperCase();
+    tel = normalizePhone(tel);
+    const nameEl = document.getElementById(cfg.nameId);
+    const phoneEl = document.getElementById(cfg.phoneId);
+    if (name && nameEl) nameEl.value = name;
+    if (tel && phoneEl) phoneEl.value = tel;
+    if (target === 'site-contact') {
+      if (name && $('#client-rep-name')) $('#client-rep-name').value = name;
+      if (tel && $('#client-rep-phone')) $('#client-rep-phone').value = tel;
+    } else {
+      if (name && $('#site-contact') && !$('#site-contact').value) $('#site-contact').value = name;
+      if (tel && $('#site-contact-phone') && !$('#site-contact-phone').value) $('#site-contact-phone').value = tel;
+    }
+    try { saveDraft(true); } catch (_) {}
+    toast((name || tel) ? 'Contact applied' : 'No name/phone in selection', (name || tel) ? 'success' : 'error');
+  }
+
+  function contactPickerSupported() {
+    return !!(navigator.contacts && typeof navigator.contacts.select === 'function');
+  }
+
+  /** Pick name + telephone from the device contact list (Contact Picker API: Chrome/Edge on Android, HTTPS). */
+  async function pickContact(target) {
+    const cfg = CONTACT_TARGETS[target] || CONTACT_TARGETS['site-contact'];
+    if (contactPickerSupported()) {
       try {
-        // Request only supported properties when possible
-        let props = ['name', 'tel'];
-        try {
-          if (typeof navigator.contacts.getProperties === 'function') {
-            const available = await navigator.contacts.getProperties();
-            props = ['name', 'tel'].filter(p => available.includes(p));
-            if (!props.length) props = ['name', 'tel'];
-          }
-        } catch (_) {}
-
-        const contacts = await navigator.contacts.select(props, { multiple: false });
-        if (!contacts || !contacts.length) {
-          toast('No contact selected', 'error');
-          return;
-        }
+        // select() must run straight from the tap (user activation) – nothing is awaited before it
+        const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+        if (!contacts || !contacts.length) { toast('No contact selected', 'error'); return; }
         const c = contacts[0];
         const name = Array.isArray(c.name) ? (c.name[0] || '') : (c.name || '');
-        let tel = '';
-        if (Array.isArray(c.tel) && c.tel.length) {
-          tel = typeof c.tel[0] === 'string' ? c.tel[0] : (c.tel[0].value || c.tel[0] || '');
-        } else if (typeof c.tel === 'string') {
-          tel = c.tel;
+        const raw = Array.isArray(c.tel) ? c.tel : (c.tel ? [c.tel] : []);
+        const tels = [];
+        raw.forEach(t => {
+          const n = normalizePhone(typeof t === 'string' ? t : (t && t.value) || '');
+          if (n && tels.indexOf(n) < 0) tels.push(n);
+        });
+        let tel = tels[0] || '';
+        if (tels.length > 1) {
+          tel = await chooseOne((name || 'Contact') + ' – choose a number', tels);
+          if (!tel) return;
         }
-        applyContact(name, tel);
+        applyContactToTarget(target, name, tel);
         return;
       } catch (e) {
         console.warn('Contact Picker failed', e);
-        // fall through to vCard / manual
+        // fall through to vCard / manual entry
       }
     }
 
-    // Fallback: trigger hidden vCard / contact file input for this target
+    // Fallback: import a contact card (.vcf) – works on iPhone (share contact → Save to Files) and desktop
     const vcf = document.getElementById(target + '-vcf');
     if (vcf) {
-      toast('Opening file picker — choose a contact/vCard if available, or type the number.', 'success');
+      toast(window.isSecureContext === false
+        ? 'Contact list needs HTTPS. Choose a contact file (.vcf) or type the number.'
+        : 'This browser cannot open the contact list directly. Choose a contact file (.vcf) or type the number.', 'success');
       vcf.click();
       return;
     }
-    toast('Contact list not available on this browser. Type the name and phone, or use Chrome on Android (HTTPS).', 'error');
-    const phone = $(phoneId);
+    toast('Contact list not available on this browser. Type the name and phone.', 'error');
+    const phone = document.getElementById(cfg.phoneId);
     if (phone) phone.focus();
   }
 
+  /** First card of a .vcf: name + every TEL line (handles folded lines, item1.TEL, TYPE params). */
   function parseVCard(text) {
-    const nameMatch = text.match(/FN[;:]([^\r\n]+)/i);
-    const telMatch = text.match(/TEL[^:]*:([^\r\n]+)/i);
-    let name = nameMatch ? nameMatch[1].trim() : '';
-    let tel = telMatch ? telMatch[1].trim() : '';
-    // Some vCards use N:Last;First
+    const t = String(text || '').replace(/\r\n?/g, '\n').replace(/\n[ \t]/g, '');
+    const card = (t.match(/BEGIN:VCARD[\s\S]*?END:VCARD/i) || [t])[0];
+    let name = '';
+    const fn = card.match(/^(?:item\d+\.)?FN(?:;[^:\n]*)?:(.+)$/im);
+    if (fn) name = fn[1].trim();
     if (!name) {
-      const n = text.match(/^N[;:]([^\r\n]+)/im);
+      const n = card.match(/^(?:item\d+\.)?N(?:;[^:\n]*)?:(.+)$/im);
       if (n) {
         const parts = n[1].split(';');
         name = [parts[1], parts[0]].filter(Boolean).join(' ').trim();
       }
     }
-    return { name, tel };
+    const tels = [];
+    const re = /^(?:item\d+\.)?TEL(?:;[^:\n]*)?:(.+)$/gim;
+    let m;
+    while ((m = re.exec(card))) {
+      const v = normalizePhone(m[1].replace(/^tel:/i, ''));
+      if (v && tels.indexOf(v) < 0) tels.push(v);
+    }
+    return { name, tels, tel: tels[0] || '' };
   }
 
   function wireContactPickers() {
@@ -555,12 +693,11 @@
       btn.dataset.wired = '1';
       btn.addEventListener('click', (ev) => {
         ev.preventDefault();
-        const t = btn.getAttribute('data-contact-for') || 'site-contact';
-        pickContact(t);
+        pickContact(btn.getAttribute('data-contact-for') || 'site-contact');
       });
     });
     // vCard file inputs
-    ['site-contact', 'client-rep'].forEach(target => {
+    Object.keys(CONTACT_TARGETS).forEach(target => {
       const vcf = document.getElementById(target + '-vcf');
       if (!vcf || vcf.dataset.wired === '1') return;
       vcf.dataset.wired = '1';
@@ -568,24 +705,22 @@
         const file = e.target.files && e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
           try {
-            const { name, tel } = parseVCard(String(reader.result || ''));
-            const nameId = target === 'client-rep' ? 'client-rep-name' : 'site-contact';
-            const phoneId = target === 'client-rep' ? 'client-rep-phone' : 'site-contact-phone';
-            if (name && $(nameId)) $(nameId).value = name.toUpperCase();
-            if (tel && $(phoneId)) $(phoneId).value = tel;
-            if (target === 'site-contact') {
-              if (name && $('#client-rep-name')) $('#client-rep-name').value = name.toUpperCase();
-              if (tel && $('#client-rep-phone')) $('#client-rep-phone').value = tel;
+            const card = parseVCard(String(reader.result || ''));
+            let tel = card.tel;
+            if (card.tels.length > 1) {
+              tel = await chooseOne((card.name || 'Contact') + ' – choose a number', card.tels);
+              if (!tel) { vcf.value = ''; return; }
             }
-            toast(name || tel ? 'Contact imported from file' : 'Could not read name/phone from file', name || tel ? 'success' : 'error');
-            try { saveDraft(true); } catch (_) {}
+            if (!card.name && !tel) toast('Could not read name/phone from file', 'error');
+            else applyContactToTarget(target, card.name, tel);
           } catch (err) {
             toast('Could not read contact file', 'error');
           }
           vcf.value = '';
         };
+        reader.onerror = () => toast('Could not read contact file', 'error');
         reader.readAsText(file);
       });
     });
@@ -741,7 +876,7 @@
     const today = todayISO();
     const oneYear = new Date();
     oneYear.setFullYear(oneYear.getFullYear() + 1);
-    const endDate = oneYear.toISOString().slice(0, 10);
+    const endDate = isoDateLocal(oneYear);
     const status = (p.status || 'NEW').toUpperCase();
     return `
       <div class="item-card part-card" style="border:1px solid var(--border);padding:10px;border-radius:8px;margin-bottom:10px;position:relative;">
@@ -838,16 +973,7 @@
       }
     }
 
-    // Generate WO number if empty
-    {
-      let num = $('#wo-number').value.trim();
-      if (!num) {
-        num = generateWONumber();
-        $('#wo-number').value = num;
-      }
-      $('#wo-number-display').textContent = num;
-    }
-    $('#wo-date-display').textContent = $('#doc-date').value || todayISO();
+    refreshHeaderBadges();
     $('#wo-status-display').textContent = $('#wo-status').value;
 
     const t = getTemplate();
@@ -1124,13 +1250,14 @@
   function buildReview() {
     const el = $('#review-summary');
     const wo = $('#wo-number').value;
+    const jcNo = getJobCardNumber();
     const client = $('#client-name').value;
     const site = $('#site-name').value;
     const equip = $('#equip-id').value + ' – ' + $('#equip-desc').value;
     const status = $('#final-status').value;
     el.innerHTML = `
       <div class="review-section"><h4>Header</h4>
-        <div class="content"><strong>${wo}</strong> · ${$('#doc-date').value} · Status: ${$('#wo-status').value}</div></div>
+        <div class="content"><strong>JOB CARD NUMBER: ${escapeHtml(jcNo || '—')}</strong> · ASSOCIATED WORK ORDER NO: ${escapeHtml(wo)} · ${escapeHtml(isoToDMY($('#doc-date').value) || '—')} · Status: ${escapeHtml($('#wo-status').value)}</div></div>
       <div class="review-section"><h4>Client & Site</h4>
         <div class="content">${escapeHtml(client)} · ${escapeHtml(site)}<br/>${escapeHtml($('#site-address').value)}</div></div>
       <div class="review-section"><h4>Equipment</h4>
@@ -1170,6 +1297,244 @@
       try { doc.addImage(dataUrl, 'PNG', x, y, boxW, boxH); } catch (_) {
         try { doc.addImage(dataUrl, 'JPEG', x, y, boxW, boxH); } catch (__) {}
       }
+    }
+  }
+
+// ---------- Cloud backup (PDF email via FSW Worker) ----------
+  // Non-blocking: nothing here is awaited by generatePDF()/sharePDF().
+  const BACKUP_URL = 'https://docsbackup-email-worker.forecourtmails1986.workers.dev';
+  const BACKUP_QUEUE_KEY = 'fsw_jobcard_backup_retry_queue';
+  const BACKUP_QUEUE_MAX = 20;
+  const BACKUP_DB_NAME = 'fsw_jobcard_backup';
+  const BACKUP_STORE = 'pdfs';
+  let backupRetryRunning = false;
+  const backupInFlightBlobs = new WeakSet();   // same PDF is never sent twice at once (generate + share)
+  const backupInFlightNames = new Set();       // retry loop skips files currently being sent
+
+  /** Toast that can never throw (toast() dereferences #toast without a null check). */
+  function backupToast(msg, type) {
+    try { toast(msg, type || ''); } catch (_) {}
+  }
+
+  /** Triggers a local download of a Blob (also used by Save Draft). */
+  function downloadBlobLocally(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  // --- IndexedDB holds the queued PDF Blobs (localStorage's ~5 MB would be shared with the draft) ---
+  let backupDbPromise = null;
+  function openBackupDB() {
+    if (backupDbPromise) return backupDbPromise;
+    backupDbPromise = new Promise(resolve => {
+      try {
+        if (!window.indexedDB) return resolve(null);
+        const req = indexedDB.open(BACKUP_DB_NAME, 1);
+        req.onupgradeneeded = () => { try { req.result.createObjectStore(BACKUP_STORE); } catch (_) {} };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+        req.onblocked = () => resolve(null);
+      } catch (_) { resolve(null); }
+    });
+    return backupDbPromise;
+  }
+  async function idbRun(mode, fn) {
+    const db = await openBackupDB();
+    if (!db) return { ok: false };
+    return new Promise(resolve => {
+      try {
+        const tx = db.transaction(BACKUP_STORE, mode);
+        const req = fn(tx.objectStore(BACKUP_STORE));
+        tx.oncomplete = () => resolve({ ok: true, value: req ? req.result : undefined });
+        tx.onerror = tx.onabort = () => resolve({ ok: false });
+      } catch (_) { resolve({ ok: false }); }
+    });
+  }
+  async function idbPutPdf(name, blob) { return (await idbRun('readwrite', s => s.put(blob, name))).ok; }
+  async function idbGetPdf(name) {
+    const r = await idbRun('readonly', s => s.get(name));
+    return { ok: r.ok, blob: r.ok ? (r.value || null) : null };
+  }
+  function idbDeletePdf(name) { return idbRun('readwrite', s => s.delete(name)); }
+
+  /** Queue metadata lives in localStorage under BACKUP_QUEUE_KEY (PDF bytes are in IndexedDB;
+   *  if IndexedDB is unavailable an entry carries the PDF as a base64 data-URL instead). */
+  function readBackupQueue() {
+    try {
+      const raw = localStorage.getItem(BACKUP_QUEUE_KEY);
+      const q = raw ? JSON.parse(raw) : [];
+      return Array.isArray(q) ? q : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /** Persists the queue (newest 20 kept) and deletes the stored PDFs of entries that fell out of it.
+   *  If storage is full, drops oldest entries until it fits. */
+  function writeBackupQueue(q) {
+    const prev = readBackupQueue();
+    let list = (Array.isArray(q) ? q : []).slice(-BACKUP_QUEUE_MAX);
+    let ok = false;
+    while (true) {
+      try {
+        if (list.length) localStorage.setItem(BACKUP_QUEUE_KEY, JSON.stringify(list));
+        else localStorage.removeItem(BACKUP_QUEUE_KEY);
+        ok = true;
+        break;
+      } catch (_) {
+        if (list.length <= 1) break;   // quota exceeded even for a single entry
+        list = list.slice(1);
+      }
+    }
+    if (!ok) return false;
+    const keep = new Set(list.map(x => x && x.fileName));
+    prev.forEach(x => { if (x && x.storage === 'idb' && !keep.has(x.fileName)) idbDeletePdf(x.fileName); });
+    return true;
+  }
+
+  /** item = { fileName, blob | contentBase64, assetId, inspectionNo, client }  → Promise<boolean> */
+  async function enqueueBackupRetry(item) {
+    if (!item || !item.fileName) return false;
+    const entry = {
+      fileName: item.fileName,
+      assetId: item.assetId || '',
+      inspectionNo: item.inspectionNo || '',
+      client: item.client || '',
+      queuedAt: new Date().toISOString()
+    };
+    if (item.blob && await idbPutPdf(item.fileName, item.blob)) {
+      entry.storage = 'idb';
+    } else {
+      let dataUrl = item.contentBase64 || '';
+      if (!dataUrl && item.blob) { try { dataUrl = await blobToDataURL(item.blob); } catch (_) {} }
+      if (!dataUrl) return false;
+      entry.storage = 'ls';
+      entry.contentBase64 = dataUrl;
+      idbDeletePdf(item.fileName);   // drop a stale older copy of the same file, if any
+    }
+    // One entry per fileName – a re-send of the same Job Card replaces the older one
+    const q = readBackupQueue().filter(x => x && x.fileName !== item.fileName);
+    q.push(entry);
+    const ok = writeBackupQueue(q);
+    if (!ok && entry.storage === 'idb') idbDeletePdf(item.fileName);
+    return ok;
+  }
+
+  function removeBackupRetry(fileName) {
+    writeBackupQueue(readBackupQueue().filter(x => x && x.fileName !== fileName));
+  }
+
+  function blobToDataURL(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(r.error || new Error('Could not read PDF'));
+      r.readAsDataURL(blob);
+    });
+  }
+
+  /** Fire-and-forget. Call WITHOUT await. Never throws, never touches the overlay/UI flow. */
+  async function backupToCloudInBackground(blob, fileName) {
+    try {
+      if (!blob || backupInFlightBlobs.has(blob)) return;
+      fileName = fileName || state.pdfFileName || buildPdfFileName();
+      backupInFlightBlobs.add(blob);
+      backupInFlightNames.add(fileName);
+
+      // Snapshot form values now so a later edit can't change what a queued retry carries
+      const meta = {
+        assetId: safeVal('#equip-id') || '',
+        inspectionNo: getJobCardNumber() || safeVal('#wo-number') || '',   // JOB CARD NUMBER (auto from Associated Work Order No)
+        client: safeVal('#client-name') || ''
+      };
+
+      try {
+        const fd = new FormData();
+        fd.append('file', blob, fileName);
+        fd.append('fileName', fileName);
+        fd.append('assetId', meta.assetId);
+        fd.append('inspectionNo', meta.inspectionNo);
+        fd.append('client', meta.client);
+
+        const res = await fetch(BACKUP_URL, { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('Backup HTTP ' + res.status);
+
+        if (blob === state.pdfBlob) state.pdfBackedUp = true;   // share will not email it again
+        removeBackupRetry(fileName);                            // clears any earlier failed attempt for this file
+        backupToast('Success - FSW received your file', 'success');
+      } catch (netErr) {
+        console.warn('Job Card backup failed, queued for retry:', netErr);
+        let queued = false;
+        try { queued = await enqueueBackupRetry(Object.assign({ fileName, blob }, meta)); } catch (qErr) {
+          console.warn('Job Card backup could not be queued:', qErr);
+        }
+        backupToast(queued ? 'Failed - Auto resend Scheduled' : 'Failed - could not schedule resend, share the PDF to retry', 'error');
+      } finally {
+        backupInFlightBlobs.delete(blob);
+        backupInFlightNames.delete(fileName);
+      }
+    } catch (e) {
+      console.warn('Job Card backup error:', e);
+    }
+  }
+
+  /** Plain base64 for a queue entry. Returns null when the PDF is gone for good; throws on a temporary storage error. */
+  async function loadQueuedContent(item) {
+    let dataUrl = '';
+    if (item.storage === 'idb') {
+      const r = await idbGetPdf(item.fileName);
+      if (!r.ok) throw new Error('Backup storage unavailable');
+      if (!r.blob) return null;
+      dataUrl = await blobToDataURL(r.blob);
+    } else {
+      dataUrl = String(item.contentBase64 || '');
+    }
+    const b64 = String(dataUrl).replace(/^data:[^,]*,/, '');
+    return b64 || null;
+  }
+
+  /** Retries queued backups one by one via JSON. Safe to call repeatedly (re-entrancy guarded). */
+  async function processBackupRetryQueue() {
+    if (backupRetryRunning) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    backupRetryRunning = true;
+    try {
+      const queue = readBackupQueue();
+      for (const item of queue) {
+        if (!item || !item.fileName) continue;
+        if (backupInFlightNames.has(item.fileName)) continue;   // being sent right now
+        try {
+          const contentBase64 = await loadQueuedContent(item);
+          if (!contentBase64) { removeBackupRetry(item.fileName); continue; }   // unrecoverable entry
+          const res = await fetch(BACKUP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: item.fileName,
+              contentBase64,
+              assetId: item.assetId || '',
+              inspectionNo: item.inspectionNo || '',
+              client: item.client || ''
+            })
+          });
+          if (!res.ok) throw new Error('Retry HTTP ' + res.status);
+          removeBackupRetry(item.fileName);
+          backupToast('Success - FSW received your file', 'success');
+        } catch (err) {
+          console.warn('Job Card backup retry failed (will try again):', err);
+          break;   // likely offline / Worker down – stop and wait for the next tick
+        }
+      }
+    } catch (e) {
+      console.warn('Job Card backup retry error:', e);
+    } finally {
+      backupRetryRunning = false;
     }
   }
 
@@ -1215,12 +1580,6 @@ function generatePDF() {
         } catch (_) {
           try { doc.addImage(LOGO_DATA_URL, 'PNG', pageW - m - 38, OUTER + 2.8, 36, 6.2); } catch (__) {}
         }
-      }
-
-      // Safe element value accessor – prevents "Cannot read properties of null"
-      function val(sel) {
-        const el = typeof sel === 'string' ? $(sel) : sel;
-        return (el && el.value != null) ? String(el.value) : '';
       }
 
       function checkPage(need) {
@@ -1503,18 +1862,14 @@ function generatePDF() {
         F('bold', 9);
         doc.setTextColor(...fswNavy);
         const woNo = val('#wo-number') || '—';
-        // Job Card No is the primary document number entered by the user
-        const jobCard = woNo.replace(/^WO-?/i, '').trim() || woNo;
-        let woDate = val('#doc-date') || '—';
-        // ISO YYYY-MM-DD -> DD-MON-YYYY
-        if (/^\d{4}-\d{2}-\d{2}/.test(woDate)) {
-          const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-          const [yy, mm, dd] = woDate.slice(0, 10).split('-');
-          woDate = dd + '-' + mons[parseInt(mm, 10) - 1] + '-' + yy;
-        }
+        const jobCardNo = getJobCardNumber() || '—';
+        const woDate = isoToDMY(val('#doc-date')) || '—';   // DD-MON-YYYY
         const woStatus = (val('#wo-status') || '—').toUpperCase();
-        const pill = 'Job Card No: ' + jobCard + '   |   Associated WO: ' + woNo + '   |   Date: ' + woDate + '   |   Status: ' + woStatus;
-        doc.setFontSize(8);
+        const pill = 'JOB CARD NUMBER: ' + jobCardNo + '   |   ASSOCIATED WORK ORDER NO: ' + woNo + '   |   DATE: ' + woDate + '   |   STATUS: ' + woStatus;
+        let pillSize = 8;
+        doc.setFontSize(pillSize);
+        // Longer labels: shrink to fit the pill instead of overflowing the page
+        while (doc.getTextWidth(pill) > usable - 4 && pillSize > 5.5) { pillSize -= 0.5; doc.setFontSize(pillSize); }
         doc.text(pill, pageW / 2, hy + 5.3, { align: 'center' });
         hy += 11;
         return hy;
@@ -1588,7 +1943,7 @@ y = drawHeaderAndTitle();
       // Job Safety and Health Acknowledgement (page 1)
       checkPage(55);
       {
-        const ack = 'By signing below, I certify that I have conducted a pre-job safety assessment and am wearing all required Personal Protective Equipment (PPE) for this task. I acknowledge that I have reviewed the safety hazards associated with this work order, understand the safe operating procedures, and agree to perform the work in compliance with company health and safety standards.';
+        const ack = 'By signing below, I certify that I have conducted a pre-job safety assessment and am wearing all required Personal Protective Equipment (PPE) for this task. I acknowledge that I have reviewed the safety hazards associated with this job card, understand the safe operating procedures, and agree to perform the work in compliance with company health and safety standards.';
         drawContentCard('Job Safety and Health Acknowledgement', ack);
         const half = (usable - 3) / 2;
         const boxH = 18;
@@ -1795,14 +2150,14 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS', 95);
           m,
           'LEAD TECHNICIAN',
           leadName,
-          val('#sig-tech-date') || formatDateDDMONYYYY(val('#work-end-date') || val('#work-date')),
+          formatDateDDMONYYYY(val('#sig-tech-date') || val('#work-end-date') || val('#work-date')),
           techSig
         );
         sigBlock(
           m + half + 3,
           'CLIENT / SITE REPRESENTATIVE',
           clientName + (clientTitle ? ' · ' + clientTitle : '') + (clientPhone ? '  ·  ' + clientPhone : ''),
-          (val('#sig-client-date') || formatDateDDMONYYYY(val('#work-end-date') || val('#work-date'))) + (val('#sig-client-time') ? ' ' + formatTimeAMPM(val('#sig-client-time')) : ''),
+          formatDateDDMONYYYY(val('#sig-client-date') || val('#work-end-date') || val('#work-date')) + (val('#sig-client-time') ? ' ' + formatTimeAMPM(val('#sig-client-time')) : ''),
           clientSig
         );
         y += 10 + boxH + 6;
@@ -1827,7 +2182,7 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS', 95);
       doc.setTextColor(40, 40, 40);
       doc.text(
         doc.splitTextToSize(
-          'This Work Order forms part of our formal documentation regime. Every intervention is executed under controlled procedures, documented in full, and subject to internal quality review.',
+          'This Job Card forms part of our formal documentation regime. Every intervention is executed under controlled procedures, documented in full, and subject to internal quality review.',
           usable - 6
         ),
         m + 3,
@@ -1852,7 +2207,7 @@ sectionHeader('PART E  —  QUALITY CONTROL TESTS AND RESULTS', 95);
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8);
           doc.setTextColor(100, 116, 139);
-          const woLabel = val('#wo-number') || '';
+          const woLabel = 'JOB CARD NUMBER: ' + (getJobCardNumber() || '—');
           doc.text(woLabel + (pages > 1 ? ('  |  Page ' + (pg + 1) + ' of ' + pages) : ''), pageW / 2, py, { align: 'center' });
           py += 6;
           const qGap = 3.5;
@@ -1913,6 +2268,10 @@ const fileName = buildPdfFileName();
       // Trigger download
       doc.save(fileName);
 
+      // Background cloud backup (non-blocking, never throws)
+      state.pdfBackedUp = false;
+      backupToCloudInBackground(state.pdfBlob, fileName);
+
       const btnShare = $('#btn-share');
       if (btnShare) btnShare.style.display = 'inline-flex';
       const pdfStatus = $('#pdf-status');
@@ -1937,12 +2296,14 @@ const fileName = buildPdfFileName();
       toast('Generate the PDF first', 'error');
       return;
     }
+    // Background cloud backup on share – only when this PDF has not already been received (retries a failed backup, never re-emails a good one)
+    if (!state.pdfBackedUp) backupToCloudInBackground(state.pdfBlob, state.pdfFileName || buildPdfFileName());
     const file = new File([state.pdfBlob], state.pdfFileName, { type: 'application/pdf' });
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
           title: state.pdfFileName,
-          text: `Technical Service Work Order – ${safeVal('#wo-number')}`,
+          text: `Technical Service Job Card – ${getJobCardNumber()}`,
           files: [file]
         });
       } catch (e) {
@@ -2032,13 +2393,33 @@ const fileName = buildPdfFileName();
     if ($('#toolbox-yes') && $('#toolbox-yes').checked) data.fields['toolbox-held'] = 'YES';
     else if ($('#toolbox-no') && $('#toolbox-no').checked) data.fields['toolbox-held'] = 'NO';
 
+    state._lastDraftStored = false;
     try {
       localStorage.setItem('fw_wo_draft', JSON.stringify(data));
       // keep a sessionStorage mirror so a hard refresh still restores if localStorage is restricted
       try { sessionStorage.setItem('fw_wo_draft', JSON.stringify(data)); } catch(_){}
-      if (!silent) toast('Draft saved on this device', 'success');
+      state._lastDraftStored = true;
+      if (silent !== true && !(silent && silent.type)) toast('Draft saved on this device', 'success');
     } catch (e) {
-      if (!silent) toast('Could not save draft (storage full?)', 'error');
+      if (silent !== true && !(silent && silent.type)) toast('Could not save draft (storage full?)', 'error');
+    }
+    return data;
+  }
+
+  /** Save Draft button: store on this device AND download a copy – one click, one toast. */
+  function saveDraftAndDownload() {
+    const data = saveDraft(true);
+    const stored = state._lastDraftStored;
+    try {
+      // Photos/signatures stay in the on-device draft; the downloaded copy holds the form data.
+      const copy = Object.assign({}, data, { photos: [], sigImages: {} });
+      const blob = new Blob([JSON.stringify(copy, null, 2)], { type: 'application/json' });
+      const jc = getJobCardNumber();
+      const name = ((jc ? 'JC#' + jc : 'JOB-CARD') + '_draft.json').replace(/[\\/:*?"<>|\s]+/g, '-');
+      downloadBlobLocally(blob, name);
+      toast(stored ? 'Draft saved on this device and downloaded' : 'Draft downloaded (could not save on this device)', stored ? 'success' : 'error');
+    } catch (e) {
+      toast(stored ? 'Draft saved on this device' : 'Could not save draft (storage full?)', stored ? 'success' : 'error');
     }
   }
 
@@ -2070,13 +2451,10 @@ const fileName = buildPdfFileName();
       }
     }
     if (data.wo || (data.fields && data.fields['wo-number'])) {
-      const jc = data.wo || data.fields['wo-number'];
-      if ($('#wo-number')) $('#wo-number').value = jc;
-      if ($('#wo-number-display')) $('#wo-number-display').textContent = 'JOB CARD ' + jc;
+      const wo = data.wo || data.fields['wo-number'];
+      if ($('#wo-number')) $('#wo-number').value = wo;
     }
-    if (data.fields && data.fields['doc-date'] && $('#wo-date-display')) {
-      $('#wo-date-display').textContent = data.fields['doc-date'];
-    }
+    refreshHeaderBadges();
     if (data.fields && data.fields['wo-status'] && $('#wo-status-display')) {
       $('#wo-status-display').textContent = data.fields['wo-status'];
     }
@@ -2133,11 +2511,23 @@ const fileName = buildPdfFileName();
     }
   }
 
+  /** One-time clean-up of drafts saved by older versions (old default supervisor, old random WO-YYYY-NNNN number). */
+  function migrateDraft(data) {
+    const f = data && data.fields;
+    if (!f) return;
+    if (f['jha-supervisor-name'] === LEGACY_DEFAULT_SUPERVISOR) f['jha-supervisor-name'] = DEFAULT_SUPERVISOR;
+    if (/^WO-\d{4}-\d{4}$/i.test(String(f['wo-number'] || data.wo || ''))) {
+      f['wo-number'] = DEFAULT_WO_NUMBER;
+      data.wo = DEFAULT_WO_NUMBER;
+    }
+  }
+
   function loadDraft() {
     try {
       const raw = localStorage.getItem('fw_wo_draft') || sessionStorage.getItem('fw_wo_draft');
       if (raw) {
         const data = JSON.parse(raw);
+        migrateDraft(data);
         applyJobData(data);
         toast('Draft restored', 'success');
         return true;
@@ -2280,6 +2670,46 @@ const fileName = buildPdfFileName();
 
   function wireJhaSigFiles() { wireAllSigFiles(); }
 
+  // ---------- Auto CAPS (except GPS/phones) + name sync ----------
+  let _autoCapsWired = false;
+  function wireAutoCapsAndSync() {
+    if (_autoCapsWired) return;
+    _autoCapsWired = true;
+    const skip = new Set(['gps-lat','gps-lng','gps-status','gps-accuracy','site-contact-phone','client-rep-phone','site-address']);
+    document.addEventListener('input', (e) => {
+      const el = e.target;
+      if (!el || !el.id) return;
+      if (skip.has(el.id)) return;
+      if (el.type === 'file' || el.type === 'date' || el.type === 'time' || el.type === 'checkbox' || el.type === 'radio') return;
+      if (el.tagName === 'SELECT') return;
+      if (typeof el.value === 'string' && el.value && el.type !== 'email') {
+        const start = el.selectionStart, end = el.selectionEnd;
+        const up = el.value.toUpperCase();
+        if (el.value !== up) {
+          el.value = up;
+          try { el.setSelectionRange(start, end); } catch (_) {}
+        }
+      }
+      // Live syncs
+      if (el.id === 'site-contact' && $('#client-rep-name')) {
+        $('#client-rep-name').value = el.value.toUpperCase();
+      }
+      if (el.id === 'site-contact-phone' && $('#client-rep-phone')) {
+        $('#client-rep-phone').value = el.value;
+      }
+      if (el.id === 'jha-tech-name' && $('#sig-tech-name')) {
+        $('#sig-tech-name').value = el.value.toUpperCase();
+      }
+    });
+    // Also on change for selects / remaining
+    document.addEventListener('change', (e) => {
+      const el = e.target;
+      if (!el || !el.id) return;
+      if (el.id === 'site-contact' && $('#client-rep-name')) $('#client-rep-name').value = (el.value || '').toUpperCase();
+      if (el.id === 'jha-tech-name' && $('#sig-tech-name')) $('#sig-tech-name').value = (el.value || '').toUpperCase();
+    });
+  }
+
   // ---------- Init & Events ----------
   // Expose QC / Parts row helpers for external override handlers
   window.fillQC = fillQC;
@@ -2291,12 +2721,14 @@ const fileName = buildPdfFileName();
 
   function init() {
 
+    // All dates show as DD-MON-YYYY (must run before any date value is set)
+    startDateDecorator();
+
     // Defaults
     if ($('#doc-date')) $('#doc-date').value = todayISO();
     if ($('#work-date')) $('#work-date').value = todayISO();
-    if ($('#wo-number')) $('#wo-number').value = generateWONumber();
-    if ($('#wo-number-display') && $('#wo-number')) $('#wo-number-display').textContent = $('#wo-number').value;
-    if ($('#wo-date-display')) $('#wo-date-display').textContent = todayISO();
+    if ($('#wo-number')) $('#wo-number').value = DEFAULT_WO_NUMBER;
+    refreshHeaderBadges();
 
     // GPS (optional — control may be hidden when not on PDF)
     if ($('#btn-gps')) $('#btn-gps').addEventListener('click', getGPS);
@@ -2352,7 +2784,7 @@ const fileName = buildPdfFileName();
       generatePDF();
     });
     $('#btn-share').addEventListener('click', sharePDF);
-    $('#btn-save-draft').addEventListener('click', saveDraft);
+    $('#btn-save-draft').addEventListener('click', saveDraftAndDownload);
 
     // Add hazard / qc / part
     $('#btn-add-hazard').addEventListener('click', () => {
@@ -2391,6 +2823,8 @@ const fileName = buildPdfFileName();
 
     // Init signature pads after layout
     setTimeout(initSignatures, 300);
+    // Step 8 only has a real width once it is visible – re-init its pads after "Confirm" on step 7
+    $$('[data-confirm="7"]').forEach(btn => btn.addEventListener('click', () => setTimeout(initSignatures, 200)));
 
     // Wire contacts, signature file attach, toolbox, auto-caps
     try { if (typeof wireContactPickers === 'function') wireContactPickers(); } catch (e) { console.warn(e); }
@@ -2401,12 +2835,24 @@ const fileName = buildPdfFileName();
 
     // Restore draft (or seed DEFAULT_JOB_CARD from PDF) — persists across tab reloads via localStorage
     loadDraft();
+    refreshHeaderBadges();
     const restoreStep = (typeof state.currentStep === 'number') ? state.currentStep : 0;
     showStep(restoreStep);
 
     // Auto-save on every field change so reload never resets progress
     document.addEventListener('input', scheduleAutoSave);
     document.addEventListener('change', scheduleAutoSave);
+
+    // Header: JOB CARD NUMBER follows the Associated Work Order No, date badge follows the Document Date
+    ['input', 'change'].forEach(ev => document.addEventListener(ev, (e) => {
+      const id = e.target && e.target.id;
+      if (id === 'wo-number' || id === 'doc-date') refreshHeaderBadges();
+    }));
+
+    // Background PDF backup retry queue
+    processBackupRetryQueue();
+    setInterval(processBackupRetryQueue, 120000);
+    window.addEventListener('online', processBackupRetryQueue);
   }
 
   if (document.readyState === 'loading') {
@@ -2416,308 +2862,3 @@ const fileName = buildPdfFileName();
   }
 })();
 
-
-// ===== FIXES OVERRIDE =====
-(function() {
-  function $(sel) { return document.querySelector(sel); }
-  function $$(sel) { return document.querySelectorAll(sel); }
-
-  // Re-bind Add QC – uses main fill helpers + REMOVE column
-  const btnQc = document.getElementById('btn-add-qc');
-  if (btnQc) {
-    btnQc.onclick = function() {
-      if (typeof addQcRow === 'function') addQcRow({});
-      else {
-        const container = document.getElementById('qc-table-container');
-        if (!container) return;
-        let tbody = container.querySelector('tbody');
-        if (!tbody) {
-          container.innerHTML = `<table class="data-table"><thead><tr>
-            <th>QC INSPECTION/TESTING</th><th>ACCEPTANCE CRITERIA</th>
-            <th>OBSERVATION/TEST RESULTS</th><th>REMARKS</th><th style="width:72px;"></th>
-          </tr></thead><tbody></tbody></table>`;
-          tbody = container.querySelector('tbody');
-        }
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input class="qc-inspection" value="" placeholder="Inspection / test item" /></td>
-          <td><input class="qc-criteria" value="" placeholder="Acceptance criteria" /></td>
-          <td>
-            <select class="qc-observation" style="font-weight:700;color:#15803d;">
-              <option value="CONFORMING (C)" selected>CONFORMING (C)</option>
-              <option value="NON CONFORMING (NC)">NON CONFORMING (NC)</option>
-            </select>
-          </td>
-          <td><input class="qc-remarks" value="" placeholder="Remarks" /></td>
-          <td style="text-align:center;width:72px;">
-            <button type="button" class="btn btn-outline btn-sm btn-remove-qc" style="color:#b91c1c;border-color:#fca5a5;padding:4px 8px;font-size:11px;">− REMOVE</button>
-          </td>`;
-        tbody.appendChild(tr);
-      }
-      try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
-    };
-  }
-
-  // Re-bind Add Part – uses main fill helpers + REMOVE
-  const btnPart = document.getElementById('btn-add-part');
-  if (btnPart) {
-    btnPart.onclick = function() {
-      if (typeof addPartRow === 'function') addPartRow({});
-      else {
-        const container = document.getElementById('parts-container');
-        if (!container) return;
-        const today = new Date().toISOString().slice(0,10);
-        const end = new Date(); end.setFullYear(end.getFullYear()+1);
-        const endDate = end.toISOString().slice(0,10);
-        const div = document.createElement('div');
-        div.className = 'item-card part-card';
-        div.style.cssText = 'border:1px solid var(--border);padding:10px;border-radius:8px;margin-bottom:10px;';
-        div.innerHTML = `
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <strong style="font-size:12px;color:#64748b;">Spare part</strong>
-            <button type="button" class="btn btn-outline btn-sm btn-remove-part" style="color:#b91c1c;border-color:#fca5a5;padding:4px 8px;font-size:11px;">− REMOVE</button>
-          </div>
-          <div class="form-group"><label>Name &amp; Part Number</label>
-            <input type="text" class="part-desc" value="" /></div>
-          <div class="row">
-            <div class="form-group"><label>Qty</label><input type="text" class="part-qty" value="1" /></div>
-            <div class="form-group"><label>Status</label>
-              <select class="part-status"><option value="NEW" selected>NEW</option><option value="RECONDITIONED">RECONDITIONED</option></select></div>
-          </div>
-          <div class="form-group"><label>Vendor / Source</label><input type="text" class="part-vendor" value="" /></div>
-          <div class="row">
-            <div class="form-group"><label>Install Date</label><input type="date" class="part-install" value="${today}" /></div>
-            <div class="form-group"><label>Warranty Start</label><input type="date" class="part-wstart" value="${today}" /></div>
-          </div>
-          <div class="form-group"><label>Warranty End</label><input type="date" class="part-wend" value="${endDate}" /></div>`;
-        const hint = container.querySelector('.parts-empty-hint');
-        if (hint) hint.remove();
-        container.appendChild(div);
-      }
-      try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
-    };
-  }
-
-  // Event delegation for − REMOVE on QC rows and spare parts
-  document.addEventListener('click', function(e) {
-    const t = e.target;
-    if (!t) return;
-    if (t.classList && t.classList.contains('btn-remove-qc')) {
-      e.preventDefault();
-      if (typeof removeQcRow === 'function') removeQcRow(t);
-      else { const tr = t.closest('tr'); if (tr) tr.remove(); }
-      try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
-      return;
-    }
-    if (t.classList && t.classList.contains('btn-remove-part')) {
-      e.preventDefault();
-      if (typeof removePartRow === 'function') removePartRow(t);
-      else { const card = t.closest('.part-card, .item-card'); if (card) card.remove(); }
-      try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
-      return;
-    }
-  });
-
-  // Force re-init signatures when step 8 is shown
-  const origShowStep = window.showStep;
-  // Hook into confirm buttons for step 7 -> 8
-  document.querySelectorAll('[data-confirm="7"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      setTimeout(() => {
-        if (typeof initSignatures === 'function') initSignatures();
-      }, 200);
-    });
-  });
-
-  // Also re-init on DOM ready with delay
-  setTimeout(() => {
-    if (typeof initSignatures === 'function') initSignatures();
-  }, 600);
-
-  // Fix Save Draft to actually download a file
-  const btnSave = document.getElementById('btn-save-draft');
-  if (btnSave) {
-    btnSave.onclick = function() {
-      const data = { version: 1, savedAt: new Date().toISOString(), fields: {} };
-      document.querySelectorAll('input, select, textarea').forEach(el => {
-        if (el.id) data.fields[el.id] = el.type === 'checkbox' ? el.checked : el.value;
-      });
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = (document.getElementById('wo-number')?.value || 'WorkOrder') + '_draft.json';
-      a.click();
-      URL.revokeObjectURL(a.href);
-      if (typeof toast === 'function') toast('Draft downloaded to your device', 'success');
-    };
-  }
-
-  // Improve PDF signature handling – convert to JPEG to avoid PNG corruption
-  // (jsPDF sometimes fails on certain PNG signatures)
-  const origGetSig = window.getSigData;
-  window.getSigDataSafe = function(id) {
-    const pad = (typeof sigPads !== 'undefined') ? sigPads[id] : null;
-    if (!pad || pad.isEmpty()) return null;
-    try {
-      // Force white background JPEG
-      const canvas = document.getElementById(id);
-      if (!canvas) return pad.toDataURL('image/png');
-      const tmp = document.createElement('canvas');
-      tmp.width = canvas.width;
-      tmp.height = canvas.height;
-      const ctx = tmp.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, tmp.width, tmp.height);
-      ctx.drawImage(canvas, 0, 0);
-      return tmp.toDataURL('image/jpeg', 0.92);
-    } catch (e) {
-      return pad.toDataURL('image/png');
-    }
-  };
-
-
-  // Signature file attachments embed into the same pad container (pad + file)
-  function showSigPreview(id, dataUrl) {
-    const wrap = document.getElementById(id + '-preview-wrap');
-    const img = document.getElementById(id + '-preview');
-    if (wrap && img && dataUrl) {
-      img.src = dataUrl;
-      wrap.classList.add('show');
-    }
-  }
-
-  function hideSigPreview(id) {
-    const wrap = document.getElementById(id + '-preview-wrap');
-    const img = document.getElementById(id + '-preview');
-    if (wrap) wrap.classList.remove('show');
-    if (img) img.removeAttribute('src');
-  }
-
-  /** Draw image into signature canvas letterboxed (no stretch) */
-  function drawSigImageContain(canvas, img) {
-    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    const parent = canvas.parentElement;
-    const w = Math.max(parent ? parent.clientWidth : 0, canvas.offsetWidth || 0, 200);
-    const h = 150;
-    canvas.width = Math.floor(w * ratio);
-    canvas.height = Math.floor(h * ratio);
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // Contain: preserve aspect ratio, no stretch
-    const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight, 1); // never upscale beyond original
-    const dw = img.naturalWidth * scale;
-    const dh = img.naturalHeight * scale;
-    const x = (w - dw) / 2;
-    const y = (h - dh) / 2;
-    ctx.drawImage(img, x * ratio, y * ratio, dw * ratio, dh * ratio);
-    return canvas.toDataURL('image/png');
-  }
-
-  function wireJhaSigFiles() {
-    ['sig-jha-tech', 'sig-jha-supervisor', 'sig-tech', 'sig-client'].forEach(id => {
-      const fileInput = document.getElementById(id + '-file');
-      if (!fileInput) return;
-      fileInput.addEventListener('change', (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        if (!file.type || !file.type.startsWith('image/')) {
-          toast('Please attach an image file (PNG/JPG)', 'error');
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result;
-          // Keep original file data URL for PDF (true original sizing source)
-          state.sigImages[id] = dataUrl;
-          state.sigImageSource = state.sigImageSource || {};
-          state.sigImageSource[id] = 'file';
-          showSigPreview(id, dataUrl);
-
-          const canvas = document.getElementById(id);
-          if (!canvas) {
-            toast('Signature attached', 'success');
-            return;
-          }
-          const img = new Image();
-          img.onload = () => {
-            try {
-              drawSigImageContain(canvas, img);
-              // Re-bind SignaturePad so pad state is non-empty
-              if (sigPads[id]) {
-                try { sigPads[id].off(); } catch (_) {}
-              }
-              sigPads[id] = new SignaturePad(canvas, {
-                backgroundColor: 'rgb(255,255,255)',
-                penColor: 'rgb(20,20,20)',
-                minWidth: 1.2,
-                maxWidth: 3.0
-              });
-              // fromDataURL may stretch — skip; state.sigImages holds original
-              toast('Signature file attached', 'success');
-              try { saveDraft(true); } catch (_) {}
-            } catch (err) {
-              console.error(err);
-              toast('Could not display signature on pad — file is still saved for PDF', 'error');
-            }
-          };
-          img.onerror = () => toast('Could not read signature image', 'error');
-          img.src = dataUrl;
-        };
-        reader.readAsDataURL(file);
-      });
-    });
-  }
-  // main IIFE wires these on init
-
-  // wirePadStrokeCapture lives in main IIFE only
-
-
-
-  // ---------- Auto CAPS (except GPS) + name sync ----------
-  function wireAutoCapsAndSync() {
-    const skip = new Set(['gps-lat','gps-lng','gps-status','gps-accuracy','site-contact-phone','client-rep-phone','site-address']);
-    document.addEventListener('input', (e) => {
-      const el = e.target;
-      if (!el || !el.id) return;
-      if (skip.has(el.id)) return;
-      if (el.type === 'file' || el.type === 'date' || el.type === 'time' || el.type === 'checkbox' || el.type === 'radio') return;
-      if (el.tagName === 'SELECT') return;
-      if (typeof el.value === 'string' && el.value && el.type !== 'email') {
-        const start = el.selectionStart, end = el.selectionEnd;
-        const up = el.value.toUpperCase();
-        if (el.value !== up) {
-          el.value = up;
-          try { el.setSelectionRange(start, end); } catch(_){}
-        }
-      }
-      // Live syncs
-      if (el.id === 'site-contact' && $('#client-rep-name')) {
-        $('#client-rep-name').value = el.value.toUpperCase();
-      }
-      if (el.id === 'site-contact-phone' && $('#client-rep-phone')) {
-        $('#client-rep-phone').value = el.value;
-      }
-      if (el.id === 'jha-tech-name' && $('#sig-tech-name')) {
-        $('#sig-tech-name').value = el.value.toUpperCase();
-      }
-      if (el.id === 'wo-number' && $('#wo-number-display')) {
-        $('#wo-number-display').textContent = 'JOB CARD ' + (el.value || '—');
-      }
-    });
-    // Also on blur for selects / remaining
-    document.addEventListener('change', (e) => {
-      const el = e.target;
-      if (!el || !el.id) return;
-      if (el.id === 'site-contact' && $('#client-rep-name')) $('#client-rep-name').value = (el.value || '').toUpperCase();
-      if (el.id === 'jha-tech-name' && $('#sig-tech-name')) $('#sig-tech-name').value = (el.value || '').toUpperCase();
-    });
-  }
-  wireAutoCapsAndSync();
-
-  // showStep persistence / sig restore is handled inside the main IIFE
-
-})();

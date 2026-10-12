@@ -575,6 +575,15 @@
     }
 
   
+    /* Dates are shown as DD-MON-YYYY: a read-only text field over a transparent native date input */
+    .date-dmy-wrap { position: relative; width: 100%; }
+    .date-dmy-display { cursor: pointer; }
+    .date-dmy-wrap > input[type="date"] {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0;
+    }
+    .date-dmy-wrap:focus-within .date-dmy-display { border-color: var(--navy); }
+
     .phone-row {
       display: flex;
       gap: 8px;
@@ -640,7 +649,7 @@
       </div>
     </div>
     <div class="wo-meta">
-      <span class="wo-badge" id="wo-number-display">JOB CARD </span>
+      <span class="wo-badge" id="wo-number-display">JOB CARD NUMBER: —</span>
       <span class="wo-badge" id="wo-date-display">—</span>
       <span class="wo-badge status-completed" id="wo-status-display">DRAFT</span>
     </div>
@@ -659,9 +668,9 @@
         </p>
 
         <div class="form-group">
-          <label>JOB CARD No <span class="req">*</span></label>
-          <input type="text" id="wo-number" value="" placeholder="e.g. 2026-0087" required />
-          <div class="help">This number appears on the PDF as Job Card No</div>
+          <label>ASSOCIATED WORK ORDER NO <span class="req">*</span></label>
+          <input type="text" id="wo-number" value="" placeholder="e.g. WO#00067" required />
+          <div class="help">The JOB CARD NUMBER (header, PDF and file name) is filled in automatically from this number</div>
         </div>
 
         <div class="row">
@@ -698,10 +707,10 @@
             <label>Site Representative Telephone</label>
             <div class="phone-row">
               <input type="tel" id="site-contact-phone" placeholder="+254 7XX XXX XXX" inputmode="tel" autocomplete="tel" />
-              <button type="button" class="btn btn-outline btn-sm btn-contact-pick" data-contact-for="site-contact" title="Pick from contacts">📇</button>
+              <button type="button" class="btn btn-outline btn-sm btn-contact-pick" data-contact-for="site-contact" title="Pick from contacts" aria-label="Pick from contacts">📇</button>
               <input type="file" id="site-contact-vcf" accept=".vcf,text/vcard,text/x-vcard,text/directory" style="display:none;" />
             </div>
-            <div class="help">Tap 📇 for contacts (Android Chrome) or vCard import (Chrome/Edge Android) or import a vCard</div>
+            <div class="help">Tap 📇 to pick from your phone's contacts (Chrome/Edge on Android). On other browsers it imports a contact card (.vcf). Or just type the number.</div>
           </div>
         </div>
 
@@ -884,7 +893,7 @@
         <div class="form-group" style="margin-top:16px;padding:12px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;">
           <label style="font-weight:700;">Job Safety and Health Acknowledgement</label>
           <p style="font-size:0.85rem;line-height:1.45;margin:8px 0 12px;color:#334155;">
-            By signing below, I certify that I have conducted a pre-job safety assessment and am wearing all required Personal Protective Equipment (PPE) for this task. I acknowledge that I have reviewed the safety hazards associated with this work order, understand the safe operating procedures, and agree to perform the work in compliance with company health and safety standards.
+            By signing below, I certify that I have conducted a pre-job safety assessment and am wearing all required Personal Protective Equipment (PPE) for this task. I acknowledge that I have reviewed the safety hazards associated with this job card, understand the safe operating procedures, and agree to perform the work in compliance with company health and safety standards.
           </p>
           <div class="row">
             <div class="form-group" style="flex:1;">
@@ -1134,10 +1143,10 @@
             <label>Site Representative Telephone</label>
             <div class="phone-row">
               <input type="tel" id="client-rep-phone" placeholder="+254 7XX XXX XXX" inputmode="tel" autocomplete="tel" />
-              <button type="button" class="btn btn-outline btn-sm btn-contact-pick" data-contact-for="client-rep" title="Pick from contacts">📇</button>
+              <button type="button" class="btn btn-outline btn-sm btn-contact-pick" data-contact-for="client-rep" title="Pick from contacts" aria-label="Pick from contacts">📇</button>
               <input type="file" id="client-rep-vcf" accept=".vcf,text/vcard,text/x-vcard,text/directory" style="display:none;" />
             </div>
-            <div class="help">Tap 📇 for contacts (Android Chrome) or vCard import</div>
+            <div class="help">Tap 📇 to pick from your phone's contacts (Chrome/Edge on Android). On other browsers it imports a contact card (.vcf). Or just type the number.</div>
           </div>
         </div>
         <div class="form-group">
@@ -1182,7 +1191,7 @@
         <span><span class="step-num">10</span> Review & Generate PDF</span>
       </div>
       <div class="step-body">
-        <p style="font-size:0.9rem;margin-bottom:14px;">Review the complete Work Order. When ready, generate a professional PDF that can be shared via WhatsApp, Email or any platform.</p>
+        <p style="font-size:0.9rem;margin-bottom:14px;">Review the complete Job Card. When ready, generate a professional PDF that can be shared via WhatsApp, Email or any platform.</p>
         <div id="review-summary"></div>
 
         <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">

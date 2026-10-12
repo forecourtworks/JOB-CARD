@@ -1,4 +1,4 @@
-# FORECOURT WORKS LIMITED — Job Completion & Sign-Off (Work Order App)
+# FORECOURT WORKS LIMITED — Job Completion & Sign-Off (JOB CARD App)
 
 **Tagline:** *Engineering Reliability Into Every Forecourt*
 
@@ -7,9 +7,11 @@ First-line operational document for inspection, repair and maintenance work acro
 ## Document title
 **JOB COMPLETION & SIGN-OFF** (web product name: **JOB CARD**)
 
-Primary number field: **JOB CARD No** → PDF Job Card No.
+Primary number field: **ASSOCIATED WORK ORDER NO** (e.g. `WO#00067`). The **JOB CARD NUMBER** (header badge, PDF, file name) is filled in automatically from it (`WO#00067` → `00067`).
 
-Meta pill: `Job Card No | Associated WO | Date (DD-MON-YYYY) | Status`
+Meta pill: `JOB CARD NUMBER | ASSOCIATED WORK ORDER NO | DATE (DD-MON-YYYY) | STATUS`
+
+All dates, on screen and in the PDF, use **DD-MON-YYYY** (the PDF file name is the one exception, see below).
 
 ## PDF chrome (FSW theme)
 - Double navy boundary (outer 0.65 mm + inner 0.22 mm)
@@ -79,15 +81,16 @@ Forecourt Works Limited · Ramco Court, GT 3B, South C, Nairobi · +254 729-002-
 - File attachments are shown in a preview and on the PDF without stretching (original aspect ratio).
 
 ## PDF download name
-`JC#<last4>-<CLIENT4>-<SITE3>-<DD/MON/YY>.pdf`  
-Example: `JC#0067-AINU-PUM-01/OCT/26.pdf`
+`JC#<JOB CARD NUMBER>-<CLIENT4>-<SITE3>-<DD.MM.YYYY>.pdf`  
+Example: `JC#00067-AINU-PUM-12.10.2026.pdf`  
+The date uses dots (never slashes), so the saved and the emailed file names are identical.
 
 
 ## Default sample data (embedded)
 
 On first open (no `localStorage` draft), the form is seeded from **JC#0067 – PETROSOMA ENERGY / SALGAA** (Air Compressor emergency repair, 09-OCT-2026):
 
-- Job Card No `00067`, status COMPLETED
+- Associated Work Order No `WO#00067` (Job Card Number `00067`)
 - Client PETROSOMA ENERGY · Site SALGAA · Contact Isaak Mohammed
 - Equipment PETR/033/SAL-01/COMP#001 · Jaguar air compressor · Emergency repair
 - Root cause: phase imbalance; spares MCB, MPCB, phase failure relay, DOL starter (Tronics)
