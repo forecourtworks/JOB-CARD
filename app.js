@@ -23,6 +23,10 @@
 
   /** Default Associated Work Order No (replaces the old random WO-2026-XXXX numbers). */
   const DEFAULT_WO_NUMBER = 'WO#00067';
+
+  // ── Groq AI suggestions (Part E–G) ───────────────────────────────────────
+  const AI_SUGGEST_URL = 'https://jobcard-grok-worker.forecourtmails1986.workers.dev';
+
   /** Supervisor name that used to be seeded by default, and its replacement. */
   const LEGACY_DEFAULT_SUPERVISOR = 'ISAAK MOHAMMED';
   const DEFAULT_SUPERVISOR = 'B.O';
@@ -288,15 +292,18 @@
     if (d) d.textContent = isoToDMY(safeVal('#doc-date')) || '—';
   }
 
-  /** PDF download: JC#<JOB CARD NUMBER>-<CLIENT4>-<SITE3>-<DD.MM.YYYY>.pdf
-   *  The JOB CARD NUMBER is auto-derived from the Associated Work Order No (WO#00067 → 00067).
-   *  Example: JC#00067-AINU-PUM-12.10.2026.pdf
-   *  Dots (not slashes) separate the date, so the saved and the emailed file names are identical. */
+  /** PDF download: JC#<JOB CARD NO>-<CLIENT FIRST NAME>-<SITE NAME>-<DD.MM.YYYY>.pdf
+   *  Example: JC#00067-PETROSOMA-SALGAA-09.10.2026.pdf
+   *  JOB CARD NO is auto-derived from #wo-number (e.g. WO#00067 → 00067).
+   *  Client = first word of #client-name; Site = full #site-name (letters/digits only). */
   function buildPdfFileName() {
-    const jc = (getJobCardNumber() || '0000').replace(/[\\/:*?"<>|\s]+/g, '-');
-    const client = (val('#client-name') || 'XXXX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 4).padEnd(4, 'X');
-    const site = (val('#site-name') || 'XXX').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3).padEnd(3, 'X');
-    const d = isoToDotDate(val('#work-end-date') || val('#work-date')) || '00.00.0000';
+    const jc = (getJobCardNumber() || '0000').replace(/[^A-Za-z0-9]/g, '') || '0000';
+    // Client first name: first token of client-name, letters only, uppercase
+    const clientRaw = (val('#client-name') || 'CLIENT').trim().split(/\s+/)[0] || 'CLIENT';
+    const client = clientRaw.replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'CLIENT';
+    // Site name: full site, letters/digits only, uppercase
+    const site = (val('#site-name') || 'SITE').replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'SITE';
+    const d = isoToDotDate(val('#work-end-date') || val('#work-date') || val('#doc-date')) || '00.00.0000';
     return 'JC#' + jc + '-' + client + '-' + site + '-' + d + '.pdf';
   }
 
@@ -948,6 +955,118 @@
   }
   function escapeAttr(s) {
     return String(s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+
+  /** Call Groq Worker to draft Part E (QC), F (Parts), G (Recommendations) */
+  async function suggestPartsEGFromAI() {
+    const reportedProblem = ($('#reported-problem') && $('#reported-problem').value || '').trim();
+    const equipType = ($('#equip-category') && $('#equip-category').value || '').trim();
+    const workType = ($('#work-type') && $('#work-type').value || '').trim();
+    const equipId = ($('#equip-id') && $('#equip-id').value || '').trim();
+    const client = ($('#client-name') && $('#client-name').value || '').trim();
+
+    if (!reportedProblem) {
+      toast('Enter the Reported Problem first', 'error');
+      if ($('#reported-problem')) $('#reported-problem').focus();
+      return;
+    }
+    if (!equipType) {
+      toast('Select Equipment Type / Category first', 'error');
+      if ($('#equip-category')) $('#equip-category').focus();
+      return;
+    }
+    if (!workType) {
+      toast('Select Type of Work first', 'error');
+      if ($('#work-type')) $('#work-type').focus();
+      return;
+    }
+
+    const btn = $('#btn-ai-suggest-eg');
+    if (btn) {
+      btn.disabled = true;
+      btn.dataset._label = btn.textContent;
+      btn.textContent = 'Drafting with AI…';
+    }
+    showOverlay('AI drafting QC, parts & recommendations…');
+
+    try {
+      const res = await fetch(AI_SUGGEST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reportedProblem,
+          equipType,
+          workType,
+          equipId,
+          client,
+          equipmentType: equipType,
+          problem: reportedProblem
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || ('HTTP ' + res.status));
+      }
+
+      // Map observation labels to app's exact option values
+      const qcRows = (data.qcRows || []).map(r => {
+        let obs = String(r.observation || 'CONFORMING (C)');
+        if (/non/i.test(obs)) obs = 'NON CONFORMING (NC)';
+        else obs = 'CONFORMING (C)';
+        return {
+          inspection: r.inspection || '',
+          criteria: r.criteria || '',
+          observation: obs,
+          remarks: r.remarks || ''
+        };
+      });
+
+      const parts = (data.parts || []).map(p => ({
+        desc: p.desc || '',
+        qty: p.qty || '1',
+        status: /recond/i.test(String(p.status || '')) ? 'RECONDITIONED' : 'NEW',
+        vendor: p.vendor || '',
+        installDate: p.installDate || '',
+        warrantyStart: p.warrantyStart || '',
+        warrantyEnd: p.warrantyEnd || ''
+      }));
+
+      if (qcRows.length) fillQC(qcRows);
+      if (parts.length) fillParts(parts);
+      else if (Array.isArray(data.parts) && data.parts.length === 0) fillParts([]);
+
+      if (data.recommendations) {
+        const el = $('#recommendations');
+        if (el) el.value = String(data.recommendations).toUpperCase();
+      }
+
+      // Light defaults for intro/conclusion if empty
+      if ($('#qc-intro') && !$('#qc-intro').value.trim()) {
+        $('#qc-intro').value = 'QUALITY CONTROL CHECKS PERFORMED WITH THE RELEVANT TESTING TOOLS AS/WHERE APPLICABLE.';
+      }
+      if ($('#qc-conclusion') && !$('#qc-conclusion').value.trim()) {
+        const allC = qcRows.length && qcRows.every(r => r.observation === 'CONFORMING (C)');
+        $('#qc-conclusion').value = allC
+          ? 'ALL REQUIRED QC CHECKS COMPLETED SATISFACTORILY.'
+          : 'QC CHECKS COMPLETED. REVIEW NON-CONFORMING ITEMS AND CORRECTIVE ACTIONS.';
+      }
+      if ($('#parts-traceability') && !$('#parts-traceability').value.trim() && parts.length) {
+        $('#parts-traceability').value = 'ANY REMOVED COMPONENTS TAGGED AND RETAINED AS REQUIRED. NEW PARTS RECORDED WITH WARRANTY INFORMATION.';
+      }
+
+      try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch (_) {}
+      toast('AI draft loaded for Part E–G — review and edit before PDF', 'success');
+    } catch (err) {
+      console.error(err);
+      toast('AI suggestion failed: ' + (err.message || err), 'error');
+    } finally {
+      hideOverlay();
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = btn.dataset._label || '✨ AI Suggest QC / Parts / Recommendations';
+      }
+    }
   }
 
   function runAutoPopulate() {
@@ -2797,6 +2916,16 @@ const fileName = buildPdfFileName();
       existing.push({ hazard: '', risk: 'Medium', control: '', verified: false });
       fillHazards(existing);
     });
+
+    if ($('#btn-ai-suggest-eg')) {
+      $('#btn-ai-suggest-eg').addEventListener('click', () => {
+        suggestPartsEGFromAI().catch(err => {
+          console.error(err);
+          toast('AI suggestion failed: ' + (err.message || err), 'error');
+        });
+      });
+    }
+
     if ($('#btn-add-qc')) {
       $('#btn-add-qc').addEventListener('click', () => addQcRow({}));
     }

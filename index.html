@@ -788,6 +788,12 @@
         <div class="form-group">
           <label>Reported Problem / Reason for Visit <span class="req">*</span></label>
           <textarea id="reported-problem" rows="2" placeholder="Describe the issue reported by the client" required></textarea>
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+            <button type="button" class="btn btn-primary" id="btn-ai-suggest-eg" style="margin:0;">
+              ✨ AI Suggest QC / Parts / Recommendations
+            </button>
+            <span class="help" style="margin:0;">Uses Equipment Type + Type of Work + Reported Problem. Review AI draft before generating PDF.</span>
+          </div>
         </div>
 
         <div class="row">
