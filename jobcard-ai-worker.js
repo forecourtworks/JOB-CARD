@@ -61,7 +61,7 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly this shape:
 Rules:
 - 3 to 6 QC rows relevant to the equipment and problem. Use CONFORMING (C) when the problem is described as resolvable by this work; NON CONFORMING (NC) only if the defect would clearly remain.
 - QC rows record POST-repair verification. The observation and remarks must agree: if CONFORMING (C), the remark states the satisfactory post-repair result and must NOT describe the original defect (e.g. never "meter reads 5% high" next to CONFORMING). Do not invent measured values or percentages.
-- 0 to 6 parts, and only parts that the reported problem implies would be replaced. Return "parts": [] if none.
+- Spare parts: for any corrective, repair, replacement or fault-finding job, ALWAYS list the 2 to 6 parts that would normally be replaced to fix the reported problem, including the main component plus typical consumables (seals, O-rings, gaskets, filters, fuses, connectors) where relevant. Use generic names and qty "1" unless a different quantity is clearly typical. Return "parts": [] only for inspection, calibration, servicing or preventive work where no part is normally replaced.
 - NEVER invent serial numbers, part numbers, vendor names, meter readings, measured values, dates or times. Leave vendor and date fields as empty strings.
 - Pick finalStatus from the list above; default to "REPAIRED AND RETURNED TO SERVICE" unless the problem implies otherwise.
 - Practical for a fuel station / industrial site in Kenya. Concise, professional, plain text only.

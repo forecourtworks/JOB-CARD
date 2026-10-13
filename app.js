@@ -875,12 +875,20 @@
     try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
   }
 
+  const PART_WARRANTY_MONTHS = 12;   // default warranty length applied to every part row
+
+  /** Install date = work end date; warranty runs from install date for PART_WARRANTY_MONTHS. */
+  function partDateDefaults() {
+    let install = val('#work-end-date') || val('#work-date') || todayISO();
+    let end = new Date(install + 'T00:00:00');
+    if (isNaN(end.getTime())) { install = todayISO(); end = new Date(install + 'T00:00:00'); }
+    end.setMonth(end.getMonth() + PART_WARRANTY_MONTHS);
+    return { install, wstart: install, wend: isoDateLocal(end) };
+  }
+
   function buildPartCardHtml(p) {
     p = p || {};
-    const today = todayISO();
-    const oneYear = new Date();
-    oneYear.setFullYear(oneYear.getFullYear() + 1);
-    const endDate = isoDateLocal(oneYear);
+    const d = partDateDefaults();
     const status = (p.status || 'NEW').toUpperCase();
     return `
       <div class="item-card part-card" style="border:1px solid var(--border);padding:10px;border-radius:8px;margin-bottom:10px;position:relative;">
@@ -903,12 +911,12 @@
           <input type="text" class="part-vendor auto-filled" value="${escapeAttr(p.vendor || '')}" /></div>
         <div class="row">
           <div class="form-group"><label>Install Date</label>
-            <input type="date" class="part-install auto-filled" value="${p.installDate || today}" /></div>
+            <input type="date" class="part-install auto-filled" value="${p.installDate || d.install}" /></div>
           <div class="form-group"><label>Warranty Start</label>
-            <input type="date" class="part-wstart auto-filled" value="${p.warrantyStart || today}" /></div>
+            <input type="date" class="part-wstart auto-filled" value="${p.warrantyStart || d.wstart}" /></div>
         </div>
         <div class="form-group"><label>Warranty End</label>
-          <input type="date" class="part-wend auto-filled" value="${p.warrantyEnd || endDate}" /></div>
+          <input type="date" class="part-wend auto-filled" value="${p.warrantyEnd || d.wend}" /></div>
       </div>`;
   }
 
@@ -1029,7 +1037,7 @@
       warrantyStart: p.warrantyStart || '',
       warrantyEnd: p.warrantyEnd || ''
     }));
-    fillParts(parts); // empty list shows the "No parts listed" hint
+    if (parts.length) fillParts(parts); // if the AI lists none, keep whatever rows are already there
     set('#parts-traceability', d.partsTraceability);
 
     // Step 7 – Technician's Recommendations
