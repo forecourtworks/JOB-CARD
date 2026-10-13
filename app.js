@@ -23,6 +23,10 @@
 
   /** Default Associated Work Order No (replaces the old random WO-2026-XXXX numbers). */
   const DEFAULT_WO_NUMBER = 'WO#00067';
+
+  // ── AI drafting of web Steps 3–8 (Scope, Findings, QC, Parts, Recommendations, Final Status) ──
+  const AI_SUGGEST_URL = 'https://jobcard-grok-worker.forecourtmails1986.workers.dev';
+
   /** Supervisor name that used to be seeded by default, and its replacement. */
   const LEGACY_DEFAULT_SUPERVISOR = 'ISAAK MOHAMMED';
   const DEFAULT_SUPERVISOR = 'B.O';
@@ -950,7 +954,118 @@
     return String(s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  function runAutoPopulate() {
+
+  /** Normalise any observation label to the app's exact <option> values. */
+  function normObs(o) {
+    return /non/i.test(String(o || '')) ? 'NON CONFORMING (NC)' : 'CONFORMING (C)';
+  }
+
+  /** Signature of the three Step 1 inputs the AI works from. */
+  function aiInputSignature() {
+    return [val('#equip-desc'), val('#work-type'), val('#reported-problem')]
+      .map(v => String(v || '').trim().toLowerCase()).join('|');
+  }
+
+  /**
+   * Ask the AI Worker to draft web Steps 3–8 from the three Step 1 inputs:
+   * equipment name, type of work, reported problem.
+   * Returns the parsed draft object, or throws on any failure.
+   */
+  async function fetchAiDraft() {
+    const res = await fetch(AI_SUGGEST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        equipmentName: val('#equip-desc'),
+        workType: val('#work-type'),
+        reportedProblem: val('#reported-problem'),
+        // light context only
+        equipType: val('#equip-category'),
+        equipId: val('#equip-id'),
+        client: val('#client-name')
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || ('HTTP ' + res.status));
+    }
+    return data;
+  }
+
+  /** Write an AI draft into Steps 3–8. Every field stays editable. */
+  function applyAiDraft(d) {
+    const set = (sel, v) => { const el = $(sel); if (el && v) el.value = String(v); };
+
+    // Step 3 – Scope of Work & Deliverables
+    set('#scope-summary', d.scopeSummary);
+    set('#scope-steps', d.scopeSteps);
+    set('#deliverables', d.deliverables);
+
+    // Step 4 – Summary of Work Done & Findings
+    set('#findings-arrival', d.findingsArrival);
+    set('#findings-diagnosis', d.findingsDiagnosis);
+    set('#findings-rootcause', d.findingsRootCause);
+    set('#findings-action', d.findingsAction);
+    set('#findings-verification', d.findingsVerification);
+
+    // Step 5 – Quality Control Tests & Results
+    set('#qc-intro', d.qcIntro);
+    const qcRows = (d.qcRows || []).map(r => ({
+      inspection: r.inspection || '',
+      criteria: r.criteria || '',
+      observation: normObs(r.observation),
+      remarks: r.remarks || ''
+    }));
+    if (qcRows.length) fillQC(qcRows);
+    set('#qc-conclusion', d.qcConclusion);
+
+    // Step 6 – Spare Parts Used
+    const parts = (d.parts || []).map(p => ({
+      desc: p.desc || '',
+      qty: p.qty || '1',
+      status: /recond/i.test(String(p.status || '')) ? 'RECONDITIONED' : 'NEW',
+      vendor: p.vendor || '',
+      installDate: p.installDate || '',
+      warrantyStart: p.warrantyStart || '',
+      warrantyEnd: p.warrantyEnd || ''
+    }));
+    fillParts(parts); // empty list shows the "No parts listed" hint
+    set('#parts-traceability', d.partsTraceability);
+
+    // Step 7 – Technician's Recommendations
+    set('#recommendations', d.recommendations);
+
+    // Step 8 – Final Status
+    const fs = $('#final-status');
+    if (fs && d.finalStatus && Array.from(fs.options).some(o => o.value === d.finalStatus)) {
+      fs.value = d.finalStatus;
+    }
+    set('#final-status-text', d.finalStatusText);
+    set('#tech-declaration', d.techDeclaration);
+
+    markAiDrafted();
+  }
+
+  /** Show a "review and edit" banner on Steps 3–8 (data-step 2..7). */
+  function markAiDrafted() {
+    for (let n = 2; n <= 7; n++) {
+      const body = document.querySelector(`#step-${n} .step-body`);
+      if (!body || body.querySelector('.ai-draft-note')) continue;
+      const note = document.createElement('div');
+      note.className = 'ai-draft-note';
+      note.style.cssText = 'background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:0.85rem;';
+      note.textContent = '✨ AI-drafted from the equipment, work type and reported problem. Review and edit everything before you confirm.';
+      body.insertBefore(note, body.firstChild);
+    }
+  }
+
+  /**
+   * @param {{force?: boolean}} opts
+   *  force=true  : Auto-Populate button – always (re)generate, confirm before overwriting edits.
+   *  force=false : Next button – only generate the first time or when the three AI inputs changed.
+   */
+  async function runAutoPopulate(opts) {
+    const force = !!(opts && opts.force);
     // Validate compulsory basics first
     const required = [
       ['client-name', 'Client name'],
@@ -970,6 +1085,17 @@
         toast(`Please complete: ${label}`, 'error');
         el && el.focus();
         return false;
+      }
+    }
+
+    // Already drafted: don't silently overwrite the user's edits
+    const sig = aiInputSignature();
+    if (state.autoPopulated) {
+      const changed = state.aiInputSig !== undefined && state.aiInputSig !== sig;
+      if (!force && !changed) { showStep(1); return true; }
+      if (!window.confirm('Regenerate the AI draft? This replaces everything currently in Steps 3–8.')) {
+        showStep(1);
+        return true;
       }
     }
 
@@ -1028,7 +1154,20 @@
     $('#sig-client-date').value = workDate;
 
     state.autoPopulated = true;
-    toast('Technical sections auto-populated. Review each step and Confirm.', 'success');
+    state.aiInputSig = sig;
+
+    // Steps 3–8: AI draft from equipment name + type of work + reported problem.
+    // The template content written above stays in place as a fallback if the AI is unreachable.
+    showOverlay('AI is drafting Steps 3–8…');
+    try {
+      applyAiDraft(await fetchAiDraft());
+      toast('AI draft loaded into Steps 3–8. Review and edit each step.', 'success');
+    } catch (err) {
+      console.error(err);
+      toast('AI unavailable (' + (err.message || err) + '). Standard template loaded instead; you can edit it.', 'error');
+    } finally {
+      hideOverlay();
+    }
     showStep(1);
     return true;
   }
@@ -2734,7 +2873,7 @@ const fileName = buildPdfFileName();
     if ($('#btn-gps')) $('#btn-gps').addEventListener('click', getGPS);
 
     // Auto-fill
-    $('#btn-autofill').addEventListener('click', runAutoPopulate);
+    $('#btn-autofill').addEventListener('click', () => { runAutoPopulate({ force: true }); });
 
     // Confirm buttons
     $$('[data-confirm]').forEach(btn => {
@@ -2753,7 +2892,7 @@ const fileName = buildPdfFileName();
     $('#btn-next').addEventListener('click', () => {
       // On step 0 force autofill path
       if (state.currentStep === 0) {
-        runAutoPopulate();
+        runAutoPopulate({ force: false });
         return;
       }
       const next = state.currentStep + 1;
@@ -2797,6 +2936,7 @@ const fileName = buildPdfFileName();
       existing.push({ hazard: '', risk: 'Medium', control: '', verified: false });
       fillHazards(existing);
     });
+
     if ($('#btn-add-qc')) {
       $('#btn-add-qc').addEventListener('click', () => addQcRow({}));
     }
