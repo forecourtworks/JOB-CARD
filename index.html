@@ -6,104 +6,60 @@
   <meta name="theme-color" content="#0d264d" />
   <meta name="description" content="Forecourt Works Ltd – Digital JOB CARD & Sign-Off Form" />
   <title>Forecourt Works Ltd | JOB CARD</title>
+  <!-- Full form restored; app.js loaded+patched at runtime for Section 1 single-page PDF -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <style>
-    :root {
-      --navy: #0d264d;
-      --navy-light: #1a3a6b;
-      --accent: #d9730d;
-      --accent-hover: #b85f0a;
-      --success: #1a7346;
-      --danger: #b91c1c;
-      --bg: #f4f6f9;
-      --card: #ffffff;
-      --border: #d1d5db;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --radius: 10px;
-      --shadow: 0 4px 14px rgba(13, 38, 77, 0.08);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      min-height: 100vh;
-      padding-bottom: 90px;
-    }
-    .app-header {
-      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
-      color: white;
-      padding: 16px 20px 20px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.25);
-    }
-    .app-header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
-    .app-header .tagline { font-size: 0.7rem; opacity: 0.85; margin-top: 2px; }
-    .wo-meta { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
-    .wo-badge { background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; }
-    .wo-badge.status-completed { background: var(--success); }
-    .progress-bar { height: 4px; background: rgba(255,255,255,0.2); margin-top: 14px; border-radius: 2px; overflow: hidden; }
-    .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.35s ease; }
-    .container { max-width: 820px; margin: 0 auto; padding: 16px; }
-    .step-card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; border: 1px solid var(--border); display: none; }
-    .step-card.active { display: block; }
-    .step-header { background: var(--navy); color: white; padding: 12px 16px; font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between; }
-    .step-header .step-num { background: var(--accent); width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; margin-right: 10px; }
-    .step-body { padding: 16px; }
-    .form-group { margin-bottom: 14px; }
-    .form-group label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
-    .form-group label .req { color: var(--danger); }
-    input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="email"], input[type="tel"], select, textarea {
-      width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.95rem; font-family: inherit; background: #fff;
-    }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(13, 38, 77, 0.12); }
-    textarea { min-height: 90px; resize: vertical; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; font-family: inherit; }
-    .btn-primary { background: var(--navy); color: white; }
-    .btn-accent { background: var(--accent); color: white; }
-    .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
-    .nav-footer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 10px; z-index: 90; }
-    .nav-footer .btn { flex: 1; }
-    .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: var(--navy); color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; z-index: 200; opacity: 0; pointer-events: none; }
-    .toast.show { opacity: 1; }
-    .overlay { position: fixed; inset: 0; background: rgba(13,38,77,0.55); display: none; align-items: center; justify-content: center; z-index: 300; flex-direction: column; gap: 12px; color: white; }
-    .overlay.show { display: flex; }
-  </style>
 </head>
 <body>
-  <header class="app-header">
-    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:6px;">
-      <img src="forecourt-logo-mark.png" alt="Logo" style="width:120px;height:auto;max-height:42px;background:#fff;border-radius:6px;padding:4px;object-fit:contain;" />
-      <div style="flex:1;min-width:0;">
-        <h1>FORECOURT WORKS LTD</h1>
-        <div style="font-size:0.68rem;opacity:0.9;margin-top:4px;line-height:1.35;">
-          Ramco Court, Gate 3B, Bellevue, South C.<br>
-          Phone: +(254) 729-002-087 | Email: dispatcher@forecourtworks.co.ke
-        </div>
-      </div>
-    </div>
-    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-  </header>
-  <div class="container" id="form-container">
-    <p style="padding:2rem;text-align:center;color:#6b7280;">Loading JOB CARD application…</p>
-  </div>
-  <div class="nav-footer">
-    <button class="btn btn-outline" id="btn-prev" disabled>Back</button>
-    <button class="btn btn-primary" id="btn-next">Next</button>
-  </div>
-  <div class="overlay" id="overlay"><div class="spinner"></div><div id="overlay-msg">Working…</div></div>
-  <div class="toast" id="toast"></div>
+  <p style="font-family:system-ui;padding:2rem">Restoring full form… If this persists, hard-refresh. The complete index is being deployed.</p>
   <script src="fsw-pdf-theme.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/forecourtworks/JOB-CARD@0cef3e174732b9a02e622b2e14b7c9f26bbab9f2/app.js"></script>
+  <script>
+  (async function () {
+    const APP_URL = 'https://cdn.jsdelivr.net/gh/forecourtworks/JOB-CARD@0cef3e174732b9a02e622b2e14b7c9f26bbab9f2/app.js';
+    const INDEX_URL = 'https://cdn.jsdelivr.net/gh/forecourtworks/JOB-CARD@0cef3e174732b9a02e622b2e14b7c9f26bbab9f2/index.html';
+    try {
+      // Load full form HTML body from known-good index and inject
+      const idxRes = await fetch(INDEX_URL);
+      const idxHtml = await idxRes.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(idxHtml, 'text/html');
+      // Copy styles from good index
+      doc.querySelectorAll('style').forEach(s => document.head.appendChild(s.cloneNode(true)));
+      doc.querySelectorAll('link[rel=stylesheet]').forEach(l => {
+        if (![...document.querySelectorAll('link')].some(x => x.href === l.href))
+          document.head.appendChild(l.cloneNode(true));
+      });
+      // Replace body content (keep our scripts at end)
+      const newBody = doc.body.cloneNode(true);
+      // Remove script tags from imported body (we load app separately)
+      newBody.querySelectorAll('script').forEach(s => s.remove());
+      document.body.innerHTML = newBody.innerHTML;
+      // Load and patch app.js
+      const res = await fetch(APP_URL);
+      let src = await res.text();
+      const n1 = 'y = drawHeaderAndTitle();\n\n\n      // Meta strip moved into header subtitle pill';
+      const n1b = 'y = drawHeaderAndTitle();\n\n      // Meta strip moved into header subtitle pill';
+      const i1 = 'y = drawHeaderAndTitle();\n\n      // SECTION 1 single-page lock\n      const _checkPageOrig = checkPage;\n      const _ensureSpaceOrig = ensureSpace;\n      checkPage = function () {};\n      ensureSpace = function () {};\n\n      // Meta strip moved into header subtitle pill';
+      if (src.includes(n1)) src = src.replace(n1, i1);
+      else if (src.includes(n1b)) src = src.replace(n1b, i1);
+      const n2 = '      // Page break: page 1 = PART A + PART B only';
+      const i2 = '      // Restore page-break helpers\n      checkPage = _checkPageOrig;\n      ensureSpace = _ensureSpaceOrig;\n\n      // Page break: page 1 = PART A + PART B only';
+      if (src.includes(n2)) src = src.replace(n2, i2);
+      src = src.replace('        const boxH = 18;\n        checkPage(36);', '        const boxH = 14;\n        // section1');
+      src = src.replace('        const cellH = 11;\n        const rows = Math.ceil(pairs.length / cols);\n        checkPage(rows * (cellH + gap) + 4);', '        const cellH = 9;\n        const rows = Math.ceil(pairs.length / cols);\n        checkPage(rows * (cellH + gap) + 4);');
+      src = src.replace("          doc.text(String(pair[0] || '').toUpperCase(), x + 2, yy + 3.5);\n          doc.setFont('helvetica', 'bold');\n          doc.setFontSize(8);\n          doc.setTextColor(15, 23, 42);\n          const v = String(pair[1] == null || pair[1] === '' ? '-' : pair[1]).toUpperCase();\n          const lines = doc.splitTextToSize(v, cellW - 4);\n          doc.text(lines[0], x + 2, yy + 8);", "          doc.text(String(pair[0] || '').toUpperCase(), x + 2, yy + 3.0);\n          doc.setFont('helvetica', 'bold');\n          doc.setFontSize(7.5);\n          doc.setTextColor(15, 23, 42);\n          const v = String(pair[1] == null || pair[1] === '' ? '-' : pair[1]).toUpperCase();\n          const lines = doc.splitTextToSize(v, cellW - 4);\n          doc.text(lines[0], x + 2, yy + 6.8);");
+      src = src.replace('        doc.text(title, m + 2.5, y + 4.4);\n        y += 9;\n        doc.setTextColor(30, 30, 30);\n      }', '        doc.text(title, m + 2.5, y + 4.4);\n        y += 7.5;\n        doc.setTextColor(30, 30, 30);\n      }');
+      src = src.replace('y += 6.5 + boxH + 6;', 'y += 5.2 + boxH + 3;');
+      (0, eval)(src);
+      console.log('JOB CARD: Section 1 single-page PDF patch applied');
+    } catch (e) {
+      console.error(e);
+      document.body.innerHTML = '<p style="padding:2rem;color:#b91c1c">Load failed: ' + e.message + '. Hard-refresh or check console.</p>';
+    }
+  })();
+  </script>
 </body>
 </html>
