@@ -65,6 +65,7 @@ Rules:
 - NEVER invent serial numbers, part numbers, vendor names, meter readings, measured values, dates or times. Leave vendor and date fields as empty strings.
 - Pick finalStatus from the list above; default to "REPAIRED AND RETURNED TO SERVICE" unless the problem implies otherwise.
 - Practical for a fuel station / industrial site in Kenya. Concise, professional, plain text only.
+- Use ONLY ordinary keyboard characters. Plain hyphen '-' (never non-breaking or special hyphens), straight quotes, no symbols such as >=, arrows, ticks or emoji (write 'at least', 'to', 'OK'). Write words like re-programmed, leak-free and post-repair with a normal hyphen.
 - Output JSON only.`;
 
 export default {
@@ -154,10 +155,23 @@ function clean(v, max) {
   return String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+/** Replace characters the PDF font cannot draw (they break line wrapping in the PDF). */
+function plain(s) {
+  return String(s)
+    .replace(/[\u2010\u2011\u2012\u2212\u2043]/g, "-")
+    .replace(/[\u2002-\u200A\u202F\u205F\u3000]/g, " ")
+    .replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "")
+    .replace(/\u2265/g, ">=").replace(/\u2264/g, "<=").replace(/\u2248/g, "~")
+    .replace(/[\u2192\u21D2]/g, "->").replace(/[\u2190\u21D0]/g, "<-")
+    .replace(/[\u2713\u2714\u2705]/g, "OK").replace(/[\u2717\u2718\u274C]/g, "X")
+    .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "")
+    .replace(/[^\u0000-\u00FF\u20AC\u2026\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u2122]/g, "?");
+}
+
 /** Model output can be a string, an array of lines, or have stray fences: coerce to text. */
 function text(v, max) {
   if (Array.isArray(v)) v = v.map(x => String(x)).join("\n");
-  return String(v == null ? "" : v).replace(/\r/g, "").trim().slice(0, max);
+  return plain(String(v == null ? "" : v).replace(/\r/g, "").trim()).slice(0, max);
 }
 
 function parseJsonLoose(raw) {
@@ -183,7 +197,7 @@ function normalise(p) {
     installDate: "",
     warrantyStart: "",
     warrantyEnd: ""
-  })).filter(x => x.desc);
+  })).filter(x => x.desc && !/^(none|n\/a|na|nil|no parts?|not applicable)\b/i.test(x.desc) && Number(x.qty) !== 0);
 
   // Compare on letters/digits only so dash style, "&" vs "AND" and spacing don't matter
   const key = v => String(v || "").toUpperCase().replace(/&/g, "AND").replace(/[^A-Z0-9]/g, "");

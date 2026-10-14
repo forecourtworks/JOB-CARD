@@ -875,6 +875,27 @@
     try { if (typeof scheduleAutoSave === 'function') scheduleAutoSave(); } catch(_){}
   }
 
+  /**
+   * Make text safe for jsPDF's built-in Helvetica (Windows-1252 only).
+   * One unsupported character (non-breaking hyphen, narrow no-break space, ≥, →, emoji...)
+   * makes jsPDF render the WHOLE string letter-spaced and mis-measure it, so it never wraps.
+   */
+  function pdfSafe(t) {
+    if (Array.isArray(t)) return t.map(pdfSafe);
+    if (typeof t !== 'string') return t;
+    return t
+      .replace(/[\u2010\u2011\u2012\u2212\u2043]/g, '-')
+      .replace(/[\u2002-\u200A\u202F\u205F\u3000]/g, ' ')
+      .replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, '')
+      .replace(/\u2265/g, '>=').replace(/\u2264/g, '<=').replace(/\u2260/g, '!=')
+      .replace(/\u2248/g, '~').replace(/[\u2192\u21D2]/g, '->').replace(/[\u2190\u21D0]/g, '<-')
+      .replace(/[\u2032]/g, "'").replace(/[\u2033]/g, '"')
+      .replace(/[\u2713\u2714\u2705]/g, 'OK').replace(/[\u2717\u2718\u274C]/g, 'X')
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')   // emoji (surrogate pairs) dropped
+      // anything still outside Latin-1 / the Windows-1252 extras becomes '?'
+      .replace(/[^\u0000-\u00FF\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178]/g, '?');
+  }
+
   const PART_WARRANTY_MONTHS = 12;   // default warranty length applied to every part row
 
   /** Install date = work end date; warranty runs from install date for PART_WARRANTY_MONTHS. */
@@ -1002,7 +1023,7 @@
 
   /** Write an AI draft into Steps 3–8. Every field stays editable. */
   function applyAiDraft(d) {
-    const set = (sel, v) => { const el = $(sel); if (el && v) el.value = String(v); };
+    const set = (sel, v) => { const el = $(sel); if (el && v) el.value = pdfSafe(String(v)); };
 
     // Step 3 – Scope of Work & Deliverables
     set('#scope-summary', d.scopeSummary);
@@ -1019,20 +1040,24 @@
     // Step 5 – Quality Control Tests & Results
     set('#qc-intro', d.qcIntro);
     const qcRows = (d.qcRows || []).map(r => ({
-      inspection: r.inspection || '',
-      criteria: r.criteria || '',
+      inspection: pdfSafe(r.inspection || ''),
+      criteria: pdfSafe(r.criteria || ''),
       observation: normObs(r.observation),
-      remarks: r.remarks || ''
+      remarks: pdfSafe(r.remarks || '')
     }));
     if (qcRows.length) fillQC(qcRows);
     set('#qc-conclusion', d.qcConclusion);
 
     // Step 6 – Spare Parts Used
-    const parts = (d.parts || []).map(p => ({
-      desc: p.desc || '',
+    const parts = (d.parts || []).filter(p => {
+      // ignore placeholder rows such as "None", "N/A", "No parts" or qty 0
+      const desc = String(p.desc || '').trim();
+      return desc && !/^(none|n\/a|na|nil|no parts?|not applicable)\b/i.test(desc) && Number(p.qty) !== 0;
+    }).map(p => ({
+      desc: pdfSafe(p.desc || ''),
       qty: p.qty || '1',
       status: /recond/i.test(String(p.status || '')) ? 'RECONDITIONED' : 'NEW',
-      vendor: p.vendor || '',
+      vendor: pdfSafe(p.vendor || ''),
       installDate: p.installDate || '',
       warrantyStart: p.warrantyStart || '',
       warrantyEnd: p.warrantyEnd || ''
@@ -1690,6 +1715,13 @@ function generatePDF() {
     try {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      // Sanitise all text at the last moment so no unsupported character can break a line
+      const _text = doc.text.bind(doc);
+      const _split = doc.splitTextToSize.bind(doc);
+      const _width = doc.getTextWidth.bind(doc);
+      doc.text = (t, ...a) => _text(pdfSafe(t), ...a);
+      doc.splitTextToSize = (t, ...a) => _split(pdfSafe(t), ...a);
+      doc.getTextWidth = (t) => _width(pdfSafe(t));
       const pageW = doc.internal.pageSize.getWidth();
       const margin = 14;
       let y = 12;
